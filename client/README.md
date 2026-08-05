@@ -1,75 +1,128 @@
-# React + TypeScript + Vite
+# Ethiopia Community Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> **Status:** 🚧 Planning & Architecture Phase
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Ethiopia Community Platform is a modern knowledge-sharing platform designed to help people ask questions, share experiences, discover solutions, and build communities around topics that matter.
 
-## React Compiler
+The platform aims to become Ethiopia's central hub for organized, searchable, and trustworthy discussions.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Unlike traditional social media, discussions remain organized and searchable so they continue helping people long after they are created.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Vision
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+To build Ethiopia's most trusted online knowledge community where people solve problems by sharing knowledge and experience.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+---
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Mission
+
+Empower every Ethiopian to ask questions, share knowledge, and help others through respectful community discussions.
+
+---
+
+## Project Status
+
+Current Phase:
+
+* ✅ Product Vision
+* ✅ Project Planning
+* 🔄 System Design
+* ⏳ Database Design
+* ⏳ API Design
+* ⏳ UI/UX Design
+* ⏳ Development
+
+---
+
+## Planned Features
+
+* User Authentication
+* User Profiles
+* Communities
+* Questions & Answers
+* Discussions
+* News Posts
+* Voting System
+* Reputation System
+* Notifications
+* Search
+* Bookmarks
+* Moderation
+* Admin Dashboard
+* Mobile Responsive Design
+* Multi-language Content Support
+
+---
+
+## Technology Stack
+
+### Frontend
+
+* React
+* Next.js
+* Tailwind CSS
+* TypeScript
+
+### Backend
+
+* Node.js
+* Express.js
+
+### Database
+
+* PostgreSQL
+* Prisma ORM
+
+### Infrastructure
+
+* Redis
+* Docker
+* GitHub Actions
+* Cloud Storage
+
+---
+
+## Repository Structure
 
 ```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+docs/
+frontend/
+backend/
+database/
+design/
+assets/
 ```
+
+---
+
+## Documentation
+
+The `docs/` directory contains all architecture and planning documents for the project.
+
+This repository follows a documentation-first development approach.
+
+---
+
+## Project Goals
+
+* Build a scalable community platform.
+* Preserve valuable knowledge.
+* Encourage respectful discussions.
+* Support Ethiopian communities.
+* Learn professional software engineering practices.
+
+---
+
+## License
+
+License will be selected before the public release of the project.
+
+---
+
+## Author
+
+Created by Wubet.

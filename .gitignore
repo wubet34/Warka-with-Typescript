@@ -1,4 +1,33 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+build/
+**/dist/
+
+# Environment files — NEVER commit real secrets
 .env
 **/.env
-node_modules/
-dist/
+!**/.env.example
+
+# Uploads (user-generated — use persistent disk on Render)
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+
+# Vite cache
+client/.vite/
+client/node_modules/.vite/

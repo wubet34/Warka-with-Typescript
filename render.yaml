@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: warka-server
+    runtime: node
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: DATABASE_URL
+        sync: false          # Set manually in Render dashboard from NeonDB
+      - key: JWT_SECRET
+        sync: false          # Set manually in Render dashboard
+      - key: CLIENT_URL
+        sync: false          # Your Vercel URL e.g. https://warka.vercel.app
+      - key: UPLOADS_DIR
+        value: /opt/render/project/uploads
+    disk:
+      name: uploads
+      mountPath: /opt/render/project/uploads
+      sizeGB: 1
