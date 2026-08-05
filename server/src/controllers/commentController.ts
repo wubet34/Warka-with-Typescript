@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import pool from "../config/db.js";
 import { AuthRequest } from "../middleware/authMiddleware.js";
 import { emitNewComment } from "../socket.js";
+import { notify } from "../utils/notify.js";
 
 export const createComment = async (req: Request, res: Response): Promise<void> => {
   const client = await pool.connect();
@@ -46,6 +47,35 @@ export const createComment = async (req: Request, res: Response): Promise<void> 
 
     // Broadcast new comment to anyone viewing this post
     emitNewComment(post_id, result.rows[0] as Record<string, unknown>);
+
+    // Notify post owner
+    const postOwner = await pool.query("SELECT user_id FROM posts WHERE id = $1", [post_id]);
+    if (postOwner.rows.length > 0) {
+      const actorUsername = (req as AuthRequest).user.username;
+      if (parent_comment_id) {
+        // Reply — notify parent comment owner
+        const parentOwner = await pool.query("SELECT user_id FROM comments WHERE id = $1", [parent_comment_id]);
+        if (parentOwner.rows.length > 0) {
+          await notify({
+            userId: Number(parentOwner.rows[0].user_id),
+            actorId: Number(user_id),
+            type: "reply",
+            message: `${actorUsername} replied to your comment`,
+            postId: post_id,
+            commentId: result.rows[0].id,
+          });
+        }
+      } else {
+        await notify({
+          userId: Number(postOwner.rows[0].user_id),
+          actorId: Number(user_id),
+          type: "comment",
+          message: `${actorUsername} commented on your post`,
+          postId: post_id,
+          commentId: result.rows[0].id,
+        });
+      }
+    }
 
     res.status(201).json({
       success: true,

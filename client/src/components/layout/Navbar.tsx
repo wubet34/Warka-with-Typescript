@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Flame, Home, LogIn, Search, Sparkles, UserPlus, Menu, X, User, Settings, LogOut, ChevronDown, PlusCircle, Bell, Sun, Moon } from "lucide-react";
+import { Flame, Home, LogIn, Search, Sparkles, UserPlus, Menu, X, User, Settings, LogOut, ChevronDown, PlusCircle, Sun, Moon } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -7,6 +7,7 @@ import { searchService } from "../../services/searchService";
 import type { Post, User as UserType, Community } from "../../types/index";
 import Login from "../Login";
 import { imgUrl } from "../../utils/imageUrl";
+import NotificationDropdown from "../ui/NotificationDropdown";
 
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -200,9 +201,7 @@ const Navbar = () => {
 
               {isAuthenticated ? (
                 <>
-                  <button className="p-2 rounded-full hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--muted)" }}>
-                    <Bell size={20} />
-                  </button>
+                  <NotificationDropdown />
                   <div className="relative" ref={profileRef}>
                     <button onClick={() => setProfileOpen(!profileOpen)}
                       className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-[var(--surface2)] transition-all"
@@ -270,7 +269,7 @@ const Navbar = () => {
               {isDark ? <Sun size={20} /> : <Moon size={20} />}
             </button>
             {isAuthenticated
-              ? <button className="p-2 rounded-full" style={{ color:"var(--muted)" }}><Bell size={22} /></button>
+              ? <NotificationDropdown />
               : <button onClick={() => openLogin("login")} className="p-2 rounded-full hover:bg-[var(--surface2)]" style={{ color:"var(--muted)" }}><LogIn size={22} /></button>}
           </div>
         </div>

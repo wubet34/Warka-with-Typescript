@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import pool from "../config/db.js";
 import { AuthRequest } from "../middleware/authMiddleware.js";
 import { emitVoteUpdate } from "../socket.js";
+import { notify } from "../utils/notify.js";
 
 export const votePost = async (req: Request, res: Response): Promise<void> => {
   const client = await pool.connect();
@@ -34,12 +35,25 @@ export const votePost = async (req: Request, res: Response): Promise<void> => {
       // First vote
       await client.query("INSERT INTO votes (user_id, post_id, vote) VALUES ($1, $2, $3)", [user_id, post_id, vote]);
       const updated = await client.query(
-        "UPDATE posts SET vote_score = vote_score + $1 WHERE id = $2 RETURNING vote_score",
+        "UPDATE posts SET vote_score = vote_score + $1 WHERE id = $2 RETURNING vote_score, user_id",
         [vote, post_id]
       );
       newScore = updated.rows[0].vote_score;
       await client.query("COMMIT");
       emitVoteUpdate(post_id, newScore);
+
+      // Notify post owner on upvote only
+      if (vote === 1) {
+        const actorUsername = (req as AuthRequest).user.username;
+        await notify({
+          userId: Number(updated.rows[0].user_id),
+          actorId: Number(user_id),
+          type: "vote",
+          message: `${actorUsername} upvoted your post`,
+          postId: post_id,
+        });
+      }
+
       res.status(201).json({ success: true, message: "Vote added.", vote_score: newScore });
       return;
     }

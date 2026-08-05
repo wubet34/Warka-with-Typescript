@@ -5,7 +5,9 @@ import { Request } from "express";
 
 // Use process.cwd() so the path is always correct regardless of
 // how tsx resolves __dirname at runtime
-const uploadsDir = path.join(process.cwd(), "uploads");
+// Use UPLOADS_DIR env var if set (e.g. Render persistent disk),
+// otherwise fall back to uploads/ relative to cwd
+const uploadsDir = process.env.UPLOADS_DIR ?? path.join(process.cwd(), "uploads");
 
 // Ensure the uploads directory exists at startup
 if (!fs.existsSync(uploadsDir)) {

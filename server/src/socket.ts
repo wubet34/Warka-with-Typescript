@@ -19,6 +19,15 @@ export const initSocket = (httpServer: HttpServer): SocketServer => {
   });
 
   io.on("connection", (socket: Socket) => {
+    // Join personal room for notifications
+    socket.on("join_user", (userId: number) => {
+      socket.join(`user:${userId}`);
+    });
+
+    socket.on("leave_user", (userId: number) => {
+      socket.leave(`user:${userId}`);
+    });
+
     // Join a post room to receive live comments/votes for that post
     socket.on("join_post", (postId: number) => {
       socket.join(`post:${postId}`);
