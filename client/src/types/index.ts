@@ -4,6 +4,7 @@ export interface User {
   email: string;
   bio?: string;
   profile_image?: string;
+  cover_image?: string;
   is_verified?: boolean;
   created_at?: string;
 }

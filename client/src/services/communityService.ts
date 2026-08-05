@@ -34,6 +34,13 @@ export const communityService = {
     return data.community;
   },
 
+  async checkMembership(id: number): Promise<boolean> {
+    const { data } = await api.get<{ success: boolean; isMember: boolean }>(
+      `/communities/${id}/membership`
+    );
+    return data.isMember;
+  },
+
   async joinCommunity(id: number): Promise<void> {
     await api.post(`/communities/${id}/join`);
   },

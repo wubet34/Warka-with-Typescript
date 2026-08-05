@@ -67,9 +67,11 @@ CREATE TABLE posts (
 
     title VARCHAR(300) NOT NULL,
 
-    content TEXT NOT NULL,
+    content TEXT,
 
     image TEXT,
+
+    link TEXT,
 
     user_id BIGINT NOT NULL,
 

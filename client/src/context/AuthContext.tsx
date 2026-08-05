@@ -42,7 +42,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
     setToken(data.token);
-    setUser(data.user);
+    // Re-fetch full profile so profile_image / cover_image are always current
+    try {
+      const fullUser = await authService.getMe();
+      localStorage.setItem("user", JSON.stringify(fullUser));
+      setUser(fullUser);
+    } catch {
+      setUser(data.user);
+    }
   };
 
   const register = async (username: string, email: string, password: string) => {

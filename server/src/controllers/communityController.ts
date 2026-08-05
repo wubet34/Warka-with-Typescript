@@ -184,6 +184,23 @@ export const leaveCommunity = async (req: Request, res: Response): Promise<void>
   }
 };
 
+export const checkMembership = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const communityId = req.params.id;
+    const userId = (req as AuthRequest).user.id;
+
+    const result = await pool.query(
+      "SELECT id FROM community_members WHERE user_id = $1 AND community_id = $2",
+      [userId, communityId]
+    );
+
+    res.status(200).json({ success: true, isMember: result.rows.length > 0 });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
+
 export const getCommunityPosts = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;

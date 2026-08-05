@@ -7,15 +7,21 @@ import {
   joinCommunity,
   leaveCommunity,
   getCommunityPosts,
+  checkMembership,
 } from "../controllers/communityController.js";
 
 const router = Router();
 
 router.post("/", authenticate, createCommunity);
 router.get("/", getCommunities);
-router.get("/:slug", getCommunityBySlug);
+
+// Specific sub-routes BEFORE the generic /:slug to avoid conflicts
+router.get("/:id/membership", authenticate, checkMembership);
 router.post("/:id/join", authenticate, joinCommunity);
 router.delete("/:id/leave", authenticate, leaveCommunity);
 router.get("/:id/posts", getCommunityPosts);
+
+// Generic slug route LAST
+router.get("/:slug", getCommunityBySlug);
 
 export default router;

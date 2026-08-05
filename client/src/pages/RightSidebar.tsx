@@ -1,140 +1,175 @@
 import { useState, useEffect } from "react";
-import { Users, TrendingUp, Search, Loader2 } from "lucide-react";
+import { Users, TrendingUp, Search, Loader2, Plus, LogIn } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import type { Community } from "../types/index";
 import { communityService } from "../services/communityService";
 import { useAuth } from "../context/AuthContext";
+import CreateCommunityModal from "../components/ui/CreateCommunityModal";
+
+interface CommunityWithMembership extends Community {
+  isMember: boolean;
+  toggling: boolean;
+}
 
 const RightSidebar = () => {
   const { isAuthenticated } = useAuth();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [communities, setCommunities] = useState<Community[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [joining, setJoining] = useState<number | null>(null);
   const navigate = useNavigate();
+  const [q, setQ]               = useState("");
+  const [items, setItems]       = useState<CommunityWithMembership[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     communityService.getCommunities()
-      .then((data) => setCommunities(data.slice(0, 5)))
+      .then(async data => {
+        const slice = data.slice(0, 5);
+        // Check membership for each community if logged in
+        const enriched = await Promise.all(
+          slice.map(async c => {
+            let isMember = false;
+            if (isAuthenticated) {
+              try { isMember = await communityService.checkMembership(c.id); } catch { /* ignore */ }
+            }
+            return { ...c, isMember, toggling: false };
+          })
+        );
+        setItems(enriched);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [isAuthenticated]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
+    if (q.trim()) navigate(`/search?q=${encodeURIComponent(q.trim())}`);
   };
 
-  const handleJoin = async (communityId: number) => {
+  const handleToggle = async (id: number, isMember: boolean) => {
     if (!isAuthenticated) return;
-    setJoining(communityId);
+    // Optimistic update
+    setItems(prev => prev.map(c => c.id === id ? { ...c, toggling: true } : c));
     try {
-      await communityService.joinCommunity(communityId);
-      setCommunities((prev) =>
-        prev.map((c) =>
-          c.id === communityId ? { ...c, member_count: c.member_count + 1 } : c
-        )
-      );
+      if (isMember) {
+        await communityService.leaveCommunity(id);
+        setItems(prev => prev.map(c =>
+          c.id === id ? { ...c, isMember: false, toggling: false, member_count: c.member_count - 1 } : c
+        ));
+      } else {
+        await communityService.joinCommunity(id);
+        setItems(prev => prev.map(c =>
+          c.id === id ? { ...c, isMember: true, toggling: false, member_count: c.member_count + 1 } : c
+        ));
+      }
     } catch (err) {
       console.error(err);
-    } finally {
-      setJoining(null);
+      setItems(prev => prev.map(c => c.id === id ? { ...c, toggling: false } : c));
     }
   };
 
-  return (
-    <div className="sticky top-4 space-y-4">
-      {/* Search */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-        <form onSubmit={handleSearch} className="flex items-center bg-gray-100 rounded-full px-4 py-2.5 gap-2">
-          <Search size={18} className="text-gray-400 shrink-0" />
-          <input
-            type="text"
-            placeholder="Search Warka..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-transparent outline-none text-sm w-full"
-          />
-        </form>
-      </div>
+  const card = { backgroundColor: "var(--surface)", border: "1px solid var(--border)" };
 
-      {/* Suggested Communities */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-              <Users size={18} className="text-[#1A4329]" />
-              Communities
-            </h3>
-            <NavLink to="/communities" className="text-xs text-[#1A4329] hover:underline font-medium">
-              View all
-            </NavLink>
-          </div>
+  return (
+    <>
+      {showCreate && <CreateCommunityModal onClose={() => setShowCreate(false)} />}
+      <div className="space-y-3 py-2">
+
+        {/* Search */}
+        <div className="rounded-2xl p-3" style={card}>
+          <form onSubmit={handleSearch} className="flex items-center rounded-full gap-2 px-4 py-2.5"
+            style={{ backgroundColor: "var(--input-bg)" }}>
+            <Search size={16} style={{ color: "var(--muted)" }} className="shrink-0" />
+            <input type="text" placeholder="Search Warka..." value={q}
+              onChange={e => setQ(e.target.value)}
+              className="bg-transparent outline-none text-sm w-full" style={{ color: "var(--text)" }} />
+          </form>
         </div>
 
-        {loading ? (
-          <div className="flex justify-center py-6">
-            <Loader2 size={20} className="animate-spin text-[#1A4329]" />
+        {/* Communities */}
+        <div className="rounded-2xl overflow-hidden" style={card}>
+          <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+            <h3 className="text-sm font-semibold flex items-center gap-1.5" style={{ color: "var(--text)" }}>
+              <Users size={15} style={{ color: "var(--accent)" }} /> Communities
+            </h3>
           </div>
-        ) : communities.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-4">No communities yet.</p>
-        ) : (
-          <div className="divide-y divide-gray-50">
-            {communities.map((community) => (
-              <div key={community.id} className="px-4 py-3 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  {community.logo ? (
-                    <img src={community.logo} className="w-10 h-10 rounded-full object-cover shrink-0" alt={community.name} />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-[#1A4329] font-bold text-base shrink-0">
-                      {community.name[0].toUpperCase()}
-                    </div>
-                  )}
+
+          {loading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 size={18} className="animate-spin" style={{ color: "var(--accent)" }} />
+            </div>
+          ) : items.length === 0 ? (
+            <p className="text-xs text-center py-4" style={{ color: "var(--muted)" }}>No communities yet.</p>
+          ) : (
+            <div>
+              {items.map(c => (
+                <div key={c.id} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--surface2)] transition-colors"
+                  style={{ borderBottom: "1px solid var(--border)" }}>
+                  {/* Logo */}
+                  {c.logo
+                    ? <img src={c.logo} className="w-9 h-9 rounded-full object-cover shrink-0" alt={c.name} />
+                    : <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white"
+                        style={{ backgroundColor: "var(--accent)" }}>
+                        {c.name[0].toUpperCase()}
+                      </div>}
+
+                  {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <NavLink
-                      to={`/w/${community.slug}`}
-                      className="text-sm font-medium text-gray-900 truncate hover:underline block"
-                    >
-                      w/{community.name}
+                    <NavLink to={`/w/${c.slug}`} className="text-sm font-medium truncate hover:underline block"
+                      style={{ color: "var(--text)" }}>
+                      w/{c.name}
                     </NavLink>
-                    {community.description && (
-                      <p className="text-xs text-gray-500 truncate">{community.description}</p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {community.member_count.toLocaleString()} members
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>
+                      {c.member_count.toLocaleString()} members
+                      {c.isMember && <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
+                        style={{ backgroundColor: "var(--accent)", color: "#fff", opacity: 0.8 }}>joined</span>}
                     </p>
                   </div>
-                  {isAuthenticated && (
+
+                  {/* Join / Leave button */}
+                  {isAuthenticated ? (
                     <button
-                      onClick={() => handleJoin(community.id)}
-                      disabled={joining === community.id}
-                      className="px-3 py-1.5 bg-[#1A4329] text-white rounded-full text-xs font-semibold hover:bg-opacity-90 transition-all shrink-0 disabled:opacity-50"
-                    >
-                      {joining === community.id ? "..." : "Join"}
+                      onClick={() => handleToggle(c.id, c.isMember)}
+                      disabled={c.toggling}
+                      className="shrink-0 px-3 py-1 rounded-full text-xs font-semibold transition-all disabled:opacity-50 hover:opacity-90"
+                      style={c.isMember
+                        ? { border: "1px solid var(--border)", color: "var(--muted)" }
+                        : { backgroundColor: "var(--accent)", color: "#fff" }}>
+                      {c.toggling ? "..." : c.isMember ? "Leave" : "Join"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => navigate("/home")}
+                      className="shrink-0 p-1.5 rounded-full hover:bg-[var(--surface2)] transition-colors"
+                      style={{ color: "var(--muted)" }}
+                      title="Sign in to join">
+                      <LogIn size={14} />
                     </button>
                   )}
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
 
-      {/* Trending placeholder */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-            <TrendingUp size={18} className="text-[#1A4329]" />
-            Trending
-          </h3>
+          {isAuthenticated && (
+            <div className="px-4 py-3">
+              <button onClick={() => setShowCreate(true)}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs transition-colors hover:opacity-80"
+                style={{ border: "1px dashed var(--border)", color: "var(--muted)" }}>
+                <Plus size={13} /> Create Community
+              </button>
+            </div>
+          )}
         </div>
-        <div className="px-4 py-3 text-xs text-gray-400 text-center">
-          Trending topics coming soon.
+
+        {/* Trending */}
+        <div className="rounded-2xl overflow-hidden" style={card}>
+          <div className="flex items-center gap-1.5 px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+            <TrendingUp size={15} style={{ color: "var(--accent)" }} />
+            <h3 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Trending</h3>
+          </div>
+          <p className="text-xs text-center py-4" style={{ color: "var(--muted)" }}>Coming soon.</p>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

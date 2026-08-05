@@ -7,6 +7,11 @@ export const postService = {
     return data.posts;
   },
 
+  async getPopular(): Promise<Post[]> {
+    const { data } = await api.get<{ success: boolean; posts: Post[] }>("/posts/popular");
+    return data.posts;
+  },
+
   async getPosts(): Promise<Post[]> {
     const { data } = await api.get<{ success: boolean; posts: Post[] }>("/posts");
     return data.posts;

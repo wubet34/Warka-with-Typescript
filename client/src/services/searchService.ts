@@ -1,7 +1,21 @@
 import api from "../api/client";
 import type { Post, User, Community } from "../types/index";
 
+export interface SearchResults {
+  posts: Post[];
+  users: User[];
+  communities: Community[];
+}
+
 export const searchService = {
+  // Unified full-text search
+  async searchAll(q: string): Promise<SearchResults> {
+    const { data } = await api.get<{ success: boolean } & SearchResults>(
+      `/search?q=${encodeURIComponent(q)}`
+    );
+    return { posts: data.posts, users: data.users, communities: data.communities };
+  },
+
   async searchPosts(q: string): Promise<Post[]> {
     const { data } = await api.get<{ success: boolean; posts: Post[] }>(
       `/search/posts?q=${encodeURIComponent(q)}`

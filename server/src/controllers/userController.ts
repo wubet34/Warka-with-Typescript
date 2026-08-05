@@ -6,7 +6,7 @@ export const getUserProfile = async (req: Request, res: Response): Promise<void>
     const { id } = req.params;
 
     const result = await pool.query(
-      `SELECT u.id, u.username, u.bio, u.profile_image, u.is_verified, u.created_at,
+      `SELECT u.id, u.username, u.bio, u.profile_image, u.cover_image, u.is_verified, u.created_at,
               COUNT(DISTINCT p.id) AS post_count,
               COUNT(DISTINCT c.id) AS comment_count
        FROM users u

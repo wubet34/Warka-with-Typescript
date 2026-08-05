@@ -1,211 +1,246 @@
-import { useState, useEffect, useRef } from "react";
-import {
-  Flame, Home, LogIn, Search, Sparkles, UserPlus,
-  Menu, X, User, Settings, LogOut, ChevronDown,
-  PlusCircle, Bell,
-} from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Flame, Home, LogIn, Search, Sparkles, UserPlus, Menu, X, User, Settings, LogOut, ChevronDown, PlusCircle, Bell, Sun, Moon } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../context/ThemeContext";
+import { searchService } from "../../services/searchService";
+import type { Post, User as UserType, Community } from "../../types/index";
 import Login from "../Login";
+import { imgUrl } from "../../utils/imageUrl";
 
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const profileRef = useRef<HTMLDivElement>(null);
+  const { isDark, toggle: toggleTheme } = useTheme();
+  const [menuOpen, setMenuOpen]       = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [showLogin, setShowLogin]     = useState(false);
+  const [loginMode, setLoginMode]     = useState<"login"|"register">("login");
+  const [q, setQ]                     = useState("");
+  const [liveResults, setLiveResults] = useState<{ posts: Post[]; users: UserType[]; communities: Community[] } | null>(null);
+  const [searching, setSearching]     = useState(false);
+  const [showDrop, setShowDrop]       = useState(false);
+  const profileRef  = useRef<HTMLDivElement>(null);
+  const searchRef   = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigate = useNavigate();
 
-  // Close profile dropdown on outside click
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setIsProfileOpen(false);
-      }
+    const h = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowDrop(false);
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  // Lock body scroll when mobile menu is open
+  // Live search debounced 300ms
+  const doSearch = useCallback(async (query: string) => {
+    if (!query.trim()) { setLiveResults(null); setShowDrop(false); return; }
+    setSearching(true);
+    try {
+      const r = await searchService.searchAll(query.trim());
+      setLiveResults(r);
+      setShowDrop(true);
+    } catch (e) { console.error(e); }
+    finally { setSearching(false); }
+  }, []);
+
   useEffect(() => {
-    document.body.style.overflow = isMenuOpen ? "hidden" : "unset";
-    return () => { document.body.style.overflow = "unset"; };
-  }, [isMenuOpen]);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => doSearch(q), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [q, doSearch]);
 
-  const handleSearch = (e: React.FormEvent) => {
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [menuOpen]);
+
+  const openLogin = (mode: "login"|"register") => { setLoginMode(mode); setShowLogin(true); setMenuOpen(false); };
+  const handleLogout = () => { logout(); setProfileOpen(false); setMenuOpen(false); navigate("/home"); };
+  const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
+    if (q.trim()) { setShowDrop(false); navigate(`/search?q=${encodeURIComponent(q.trim())}`); }
   };
+  const goToResult = (path: string) => { setShowDrop(false); setQ(""); navigate(path); };
 
-  const handleLogout = () => {
-    logout();
-    setIsProfileOpen(false);
-    setIsMenuOpen(false);
-    navigate("/home");
-  };
+  const avatarSrc = imgUrl(user?.profile_image);
 
-  const linkStyles = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center space-x-1.5 py-1.5 px-3 rounded-full transition-all text-sm font-medium ${
-      isActive
-        ? "bg-green-50 text-[#1A4329]"
-        : "text-gray-600 hover:bg-gray-50 hover:text-[#1A4329]"
-    }`;
+  /* ── style helpers ── */
+  const navLink = ({ isActive }: { isActive: boolean }) =>
+    `flex items-center gap-1.5 py-1.5 px-3 rounded-full text-sm font-medium transition-all
+     ${isActive ? "bg-green-900/20 text-[var(--accent)]" : "text-[var(--muted)] hover:bg-[var(--surface2)] hover:text-[var(--accent)]"}`;
 
-  const mobileBottomLinkStyles = ({ isActive }: { isActive: boolean }) =>
-    `flex flex-col items-center gap-1 py-1 px-3 transition-all ${
-      isActive ? "text-[#1A4329]" : "text-gray-500 hover:text-[#1A4329]"
-    }`;
+  const menuLink = ({ isActive }: { isActive: boolean }) =>
+    `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors
+     ${isActive ? "bg-green-900/20 text-[var(--accent)]" : "text-[var(--text)] hover:bg-[var(--surface2)]"}`;
+
+  const botLink = ({ isActive }: { isActive: boolean }) =>
+    `flex flex-col items-center gap-0.5 py-1 px-2 transition-all
+     ${isActive ? "text-[var(--accent)]" : "text-[var(--muted)] hover:text-[var(--accent)]"}`;
 
   return (
     <>
-      {/* Login/Register modal */}
-      {showLogin && <Login onClose={() => setShowLogin(false)} />}
+      {showLogin && <Login onClose={() => setShowLogin(false)} defaultMode={loginMode} />}
 
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-40">
-        <div className="flex items-center justify-between px-4 py-3.5 lg:px-6">
+      {/* ── TOP BAR ── */}
+      <header style={{ backgroundColor:"var(--surface)", borderBottom:"1px solid var(--border)" }} className="sticky top-0 z-40">
+        <div className="flex items-center justify-between px-3 sm:px-4 py-3 lg:px-6">
 
-          {/* ── LEFT: Logo (hidden on mobile when logged in) + Menu icon ── */}
-          <div className="shrink-0 flex items-center">
-            {/* Mobile: show hamburger when logged in, logo when logged out */}
-            {isAuthenticated ? (
-              <button
-                onClick={() => setIsMenuOpen(true)}
-                className="lg:hidden p-2 -ml-1 text-gray-600 hover:text-[#1A4329] rounded-lg hover:bg-gray-50 transition-colors"
-                aria-label="Open menu"
-              >
-                <Menu size={24} />
-              </button>
-            ) : (
-              <h1 className="lg:hidden text-xl font-bold text-[#1A4329]">Warka</h1>
-            )}
-            {/* Desktop: always show logo */}
-            <h1 className="hidden lg:block text-2xl font-bold text-[#1A4329]">Warka</h1>
+          {/* Left */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={() => setMenuOpen(true)} className="lg:hidden p-2 -ml-1 rounded-lg hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--muted)" }}>
+              <Menu size={24} />
+            </button>
+            <NavLink to="/home" className="hidden lg:block text-2xl font-bold" style={{ color:"var(--accent)" }}>Warka</NavLink>
           </div>
 
-          {/* ── MIDDLE: Mobile search bar ── */}
-          <form
-            onSubmit={handleSearch}
-            className="lg:hidden flex-1 mx-3 max-w-sm"
-          >
-            <div className="flex items-center bg-gray-100 rounded-full gap-1.5 px-3 py-2 w-full">
-              <Search size={16} className="text-gray-500 shrink-0" />
-              <input
-                type="search"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent outline-none text-sm w-full placeholder-gray-400"
-              />
+          {/* Mobile search */}
+          <form onSubmit={handleSearchSubmit} className="lg:hidden flex-1 mx-2 sm:mx-3 max-w-sm">
+            <div className="flex items-center rounded-full gap-1.5 px-3 py-2" style={{ backgroundColor:"var(--input-bg)" }}>
+              <Search size={15} style={{ color:"var(--muted)" }} className="shrink-0" />
+              <input type="search" placeholder="Search..." value={q} onChange={e => setQ(e.target.value)}
+                className="bg-transparent outline-none text-sm w-full" style={{ color:"var(--text)" }} />
             </div>
           </form>
 
-          {/* ── DESKTOP NAV ── */}
+          {/* Desktop nav */}
           <nav className="hidden lg:flex items-center flex-1 justify-between ml-8">
-            {/* Nav links + search */}
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-5">
               <div className="flex items-center gap-1">
-                <NavLink to="/home" className={linkStyles}>
-                  <Home size={18} /><span>Home</span>
-                </NavLink>
-                <NavLink to="/new" className={linkStyles}>
-                  <Sparkles size={18} /><span>New</span>
-                </NavLink>
-                <NavLink to="/popular" className={linkStyles}>
-                  <Flame size={18} /><span>Popular</span>
-                </NavLink>
+                <NavLink to="/home"    className={navLink}><Home size={17}/><span>Home</span></NavLink>
+                <NavLink to="/new"     className={navLink}><Sparkles size={17}/><span>New</span></NavLink>
+                <NavLink to="/popular" className={navLink}><Flame size={17}/><span>Popular</span></NavLink>
               </div>
+              <div className="relative" ref={searchRef}>
+                <form onSubmit={handleSearchSubmit} className="flex items-center rounded-full gap-2 px-4 py-2 w-52 xl:w-64" style={{ backgroundColor:"var(--input-bg)" }}>
+                  <Search size={16} style={{ color:"var(--muted)" }} className="shrink-0" />
+                  <input type="search" placeholder="Search topics, communities..." value={q} onChange={e => setQ(e.target.value)}
+                    onFocus={() => q.trim() && liveResults && setShowDrop(true)}
+                    className="bg-transparent outline-none text-sm w-full" style={{ color:"var(--text)" }} />
+                  {searching && <span className="text-xs" style={{ color:"var(--muted)" }}>...</span>}
+                </form>
 
-              <form
-                onSubmit={handleSearch}
-                className="flex items-center bg-gray-100 rounded-full gap-2 px-4 py-2 w-52 xl:w-64"
-              >
-                <button type="submit" className="text-gray-500 shrink-0">
-                  <Search size={17} />
-                </button>
-                <input
-                  type="search"
-                  placeholder="Search topics, communities..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent outline-none text-sm w-full"
-                />
-              </form>
+                {/* Live search dropdown */}
+                {showDrop && liveResults && q.trim() && (
+                  <div className="absolute top-full left-0 mt-2 w-80 rounded-xl shadow-2xl z-50 overflow-hidden"
+                    style={{ backgroundColor:"var(--surface)", border:"1px solid var(--border)" }}>
+
+                    {/* Communities */}
+                    {liveResults.communities.length > 0 && (
+                      <div>
+                        <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color:"var(--muted)", borderBottom:"1px solid var(--border)" }}>Communities</p>
+                        {liveResults.communities.slice(0,3).map(c => (
+                          <button key={c.id} onClick={() => goToResult(`/w/${c.slug}`)}
+                            className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[var(--surface2)] transition-colors text-left">
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 text-white" style={{ backgroundColor:"var(--accent)" }}>
+                              {c.name[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate" style={{ color:"var(--text)" }}>w/{c.name}</p>
+                              <p className="text-xs" style={{ color:"var(--muted)" }}>{c.member_count?.toLocaleString()} members</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Users */}
+                    {liveResults.users.length > 0 && (
+                      <div>
+                        <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color:"var(--muted)", borderBottom:"1px solid var(--border)", borderTop:"1px solid var(--border)" }}>People</p>
+                        {liveResults.users.slice(0,3).map(u => (
+                          <button key={u.id} onClick={() => goToResult(`/user/${u.id}`)}
+                            className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[var(--surface2)] transition-colors text-left">
+                            {u.profile_image
+                              ? <img src={imgUrl(u.profile_image)} className="w-7 h-7 rounded-full object-cover shrink-0" alt="" />
+                              : <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ backgroundColor:"var(--accent)" }}>{u.username[0].toUpperCase()}</div>}
+                            <p className="text-sm font-medium truncate" style={{ color:"var(--text)" }}>{u.username}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Posts */}
+                    {liveResults.posts.length > 0 && (
+                      <div>
+                        <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color:"var(--muted)", borderBottom:"1px solid var(--border)", borderTop:"1px solid var(--border)" }}>Posts</p>
+                        {liveResults.posts.slice(0,3).map(p => (
+                          <button key={p.id} onClick={() => goToResult(`/post/${p.id}`)}
+                            className="w-full px-3 py-2.5 hover:bg-[var(--surface2)] transition-colors text-left">
+                            <p className="text-sm font-medium truncate" style={{ color:"var(--text)" }}>{p.title}</p>
+                            <p className="text-xs" style={{ color:"var(--muted)" }}>w/{p.community_name}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* See all */}
+                    {(liveResults.posts.length > 0 || liveResults.users.length > 0 || liveResults.communities.length > 0) && (
+                      <button onClick={() => goToResult(`/search?q=${encodeURIComponent(q.trim())}`)}
+                        className="w-full px-3 py-2.5 text-xs font-semibold text-center hover:bg-[var(--surface2)] transition-colors"
+                        style={{ color:"var(--accent)", borderTop:"1px solid var(--border)" }}>
+                        See all results for "{q}"
+                      </button>
+                    )}
+
+                    {liveResults.posts.length === 0 && liveResults.users.length === 0 && liveResults.communities.length === 0 && (
+                      <p className="px-3 py-4 text-sm text-center" style={{ color:"var(--muted)" }}>No results for "{q}"</p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Desktop right: auth buttons OR user profile */}
             <div className="flex items-center gap-2 shrink-0">
+              {/* Theme toggle */}
+              <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--muted)" }} title="Toggle theme">
+                {isDark ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+
               {isAuthenticated ? (
                 <>
-                  {/* Bell */}
-                  <button className="relative p-2 text-gray-600 hover:text-[#1A4329] hover:bg-gray-50 rounded-full transition-all">
+                  <button className="p-2 rounded-full hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--muted)" }}>
                     <Bell size={20} />
-                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
-                      5
-                    </span>
                   </button>
-
-                  {/* Profile dropdown */}
                   <div className="relative" ref={profileRef}>
-                    <button
-                      onClick={() => setIsProfileOpen(!isProfileOpen)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-all"
-                    >
-                      {user?.profile_image ? (
-                        <img
-                          src={user.profile_image}
-                          className="w-8 h-8 rounded-full object-cover"
-                          alt={user.username}
-                        />
-                      ) : (
-                        <div className="w-8 h-8 bg-[#1A4329] rounded-full flex items-center justify-center">
-                          <User size={17} className="text-white" />
-                        </div>
-                      )}
-                      <span className="text-sm font-medium text-gray-700 max-w-[120px] truncate">
-                        {user?.username}
-                      </span>
-                      <ChevronDown
-                        size={15}
-                        className={`text-gray-400 transition-transform ${isProfileOpen ? "rotate-180" : ""}`}
-                      />
+                    <button onClick={() => setProfileOpen(!profileOpen)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-[var(--surface2)] transition-all"
+                      style={{ border:"1px solid transparent" }}>
+                      {avatarSrc ? <img src={avatarSrc} className="w-8 h-8 rounded-full object-cover" alt="" /> :
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white" style={{ backgroundColor:"var(--accent)" }}>
+                          <User size={16} />
+                        </div>}
+                      <span className="text-sm font-medium max-w-[100px] truncate" style={{ color:"var(--text)" }}>{user?.username}</span>
+                      <ChevronDown size={14} style={{ color:"var(--muted)" }} className={`transition-transform ${profileOpen?"rotate-180":""}`} />
                     </button>
-
-                    {isProfileOpen && (
-                      <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
-                        <div className="px-4 py-3 border-b border-gray-100">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{user?.username}</p>
-                          <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                    {profileOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-56 rounded-xl shadow-xl py-2 z-50"
+                        style={{ backgroundColor:"var(--surface)", border:"1px solid var(--border)" }}>
+                        <div className="px-4 py-3" style={{ borderBottom:"1px solid var(--border)" }}>
+                          <p className="text-sm font-semibold truncate" style={{ color:"var(--text)" }}>{user?.username}</p>
+                          <p className="text-xs truncate" style={{ color:"var(--muted)" }}>{user?.email}</p>
                         </div>
-
                         <div className="py-1">
-                          <NavLink
-                            to={`/user/${user?.id}`}
-                            onClick={() => setIsProfileOpen(false)}
-                            className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            <User size={15} className="text-gray-400" />
-                            <span>Profile</span>
+                          <NavLink to={`/user/${user?.id}`} onClick={() => setProfileOpen(false)}
+                            className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
+                            <User size={15} style={{ color:"var(--muted)" }} /> Profile
                           </NavLink>
-                          <button
-                            onClick={() => setIsProfileOpen(false)}
-                            className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            <Settings size={15} className="text-gray-400" />
-                            <span>Settings</span>
+                          <button onClick={() => setProfileOpen(false)}
+                            className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
+                            <Settings size={15} style={{ color:"var(--muted)" }} /> Settings
+                          </button>
+                          {/* Theme in dropdown */}
+                          <button onClick={toggleTheme}
+                            className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
+                            {isDark ? <Sun size={15} style={{ color:"var(--muted)" }} /> : <Moon size={15} style={{ color:"var(--muted)" }} />}
+                            {isDark ? "Light Mode" : "Dark Mode"}
                           </button>
                         </div>
-
-                        <div className="border-t border-gray-100 pt-1">
-                          <button
-                            onClick={handleLogout}
-                            className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                          >
-                            <LogOut size={15} />
-                            <span>Logout</span>
+                        <div className="pt-1" style={{ borderTop:"1px solid var(--border)" }}>
+                          <button onClick={handleLogout}
+                            className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-500/10 transition-colors">
+                            <LogOut size={15} /> Logout
                           </button>
                         </div>
                       </div>
@@ -214,203 +249,128 @@ const Navbar = () => {
                 </>
               ) : (
                 <>
-                  <button
-                    onClick={() => setShowLogin(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 border border-[#1A4329] text-[#1A4329] rounded-full text-sm font-semibold hover:bg-green-50 transition-all"
-                  >
-                    <LogIn size={15} /><span>Sign In</span>
+                  <button onClick={() => openLogin("login")}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold hover:bg-green-900/10 transition-all"
+                    style={{ border:"1px solid var(--accent)", color:"var(--accent)" }}>
+                    <LogIn size={15} /> Sign In
                   </button>
-                  <button
-                    onClick={() => setShowLogin(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-[#1A4329] text-white rounded-full text-sm font-semibold hover:bg-opacity-90 shadow-sm transition-all"
-                  >
-                    <UserPlus size={15} /><span>Register</span>
+                  <button onClick={() => openLogin("register")}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold text-white transition-all"
+                    style={{ backgroundColor:"var(--accent)" }}>
+                    <UserPlus size={15} /> Register
                   </button>
                 </>
               )}
             </div>
           </nav>
 
-          {/* ── MOBILE RIGHT: Bell (when logged in) ── */}
-          {isAuthenticated && (
-            <div className="lg:hidden shrink-0">
-              <button className="relative p-2 text-gray-600 hover:text-[#1A4329] rounded-full transition-all">
-                <Bell size={22} />
-                <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-red-500 text-white text-[9px] rounded-full flex items-center justify-center">
-                  3
-                </span>
-              </button>
-            </div>
-          )}
+          {/* Mobile right */}
+          <div className="lg:hidden flex items-center gap-1 shrink-0">
+            <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-[var(--surface2)]" style={{ color:"var(--muted)" }}>
+              {isDark ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            {isAuthenticated
+              ? <button className="p-2 rounded-full" style={{ color:"var(--muted)" }}><Bell size={22} /></button>
+              : <button onClick={() => openLogin("login")} className="p-2 rounded-full hover:bg-[var(--surface2)]" style={{ color:"var(--muted)" }}><LogIn size={22} /></button>}
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* ── MOBILE SLIDE-IN MENU OVERLAY ── */}
-      {isMenuOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/30 backdrop-blur-sm z-50"
-          onClick={() => setIsMenuOpen(false)}
-        />
-      )}
+      {/* ── Mobile overlay ── */}
+      {menuOpen && <div className="lg:hidden fixed inset-0 bg-black/50 z-50" onClick={() => setMenuOpen(false)} />}
 
-      {/* ── MOBILE SLIDE-IN MENU PANEL ── */}
-      <div
-        className={`lg:hidden fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-white shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-in-out ${
-          isMenuOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        {/* Panel header */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-[#1A4329]">Menu</h2>
-          <button
-            onClick={() => setIsMenuOpen(false)}
-            className="p-2 text-gray-500 hover:text-[#1A4329] hover:bg-gray-50 rounded-lg transition-colors"
-          >
-            <X size={22} />
-          </button>
+      {/* ── Mobile slide menu ── */}
+      <div className={`lg:hidden fixed top-0 left-0 h-full w-80 max-w-[85vw] shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ${menuOpen?"translate-x-0":"-translate-x-full"}`}
+        style={{ backgroundColor:"var(--surface)" }}>
+        <div className="flex items-center justify-between px-4 py-4" style={{ borderBottom:"1px solid var(--border)" }}>
+          <span className="text-xl font-bold" style={{ color:"var(--accent)" }}>Warka</span>
+          <button onClick={() => setMenuOpen(false)} className="p-2 rounded-lg hover:bg-[var(--surface2)]" style={{ color:"var(--muted)" }}><X size={22} /></button>
         </div>
 
-        {/* Panel body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-5">
-
-          {/* User card (when logged in) */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {isAuthenticated && user && (
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-              {user.profile_image ? (
-                <img src={user.profile_image} className="w-10 h-10 rounded-full object-cover shrink-0" alt="" />
-              ) : (
-                <div className="w-10 h-10 bg-[#1A4329] rounded-full flex items-center justify-center shrink-0">
-                  <User size={20} className="text-white" />
-                </div>
-              )}
+            <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor:"var(--surface2)" }}>
+              {avatarSrc ? <img src={avatarSrc} className="w-10 h-10 rounded-full object-cover shrink-0" alt="" /> :
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0" style={{ backgroundColor:"var(--accent)" }}>
+                  <User size={20} />
+                </div>}
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{user.username}</p>
-                <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                <p className="text-sm font-semibold truncate" style={{ color:"var(--text)" }}>{user.username}</p>
+                <p className="text-xs truncate" style={{ color:"var(--muted)" }}>{user.email}</p>
               </div>
             </div>
           )}
 
-          {/* Nav links */}
+          {!isAuthenticated && (
+            <div className="p-4 rounded-xl" style={{ backgroundColor:"var(--surface2)", border:"1px solid var(--border)" }}>
+              <p className="text-sm font-semibold mb-1" style={{ color:"var(--accent)" }}>Join Warka</p>
+              <p className="text-xs mb-3" style={{ color:"var(--muted)" }}>Sign in to post, comment and vote.</p>
+              <div className="flex gap-2">
+                <button onClick={() => openLogin("login")} className="flex-1 py-2 rounded-full text-xs font-semibold flex items-center justify-center gap-1 hover:opacity-90"
+                  style={{ border:"1px solid var(--accent)", color:"var(--accent)" }}>
+                  <LogIn size={13} /> Sign In
+                </button>
+                <button onClick={() => openLogin("register")} className="flex-1 py-2 rounded-full text-xs font-semibold text-white flex items-center justify-center gap-1 hover:opacity-90"
+                  style={{ backgroundColor:"var(--accent)" }}>
+                  <UserPlus size={13} /> Register
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-1">
-            <NavLink
-              to="/home"
-              onClick={() => setIsMenuOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                  isActive ? "bg-green-50 text-[#1A4329]" : "text-gray-700 hover:bg-gray-50 hover:text-[#1A4329]"
-                }`
-              }
-            >
-              <Home size={20} /><span>Home</span>
-            </NavLink>
-            <NavLink
-              to="/new"
-              onClick={() => setIsMenuOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                  isActive ? "bg-green-50 text-[#1A4329]" : "text-gray-700 hover:bg-gray-50 hover:text-[#1A4329]"
-                }`
-              }
-            >
-              <Sparkles size={20} /><span>New</span>
-            </NavLink>
-            <NavLink
-              to="/popular"
-              onClick={() => setIsMenuOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                  isActive ? "bg-green-50 text-[#1A4329]" : "text-gray-700 hover:bg-gray-50 hover:text-[#1A4329]"
-                }`
-              }
-            >
-              <Flame size={20} /><span>Popular</span>
-            </NavLink>
+            <NavLink to="/home"    onClick={() => setMenuOpen(false)} className={menuLink}><Home size={19} /> Home</NavLink>
+            <NavLink to="/new"     onClick={() => setMenuOpen(false)} className={menuLink}><Sparkles size={19} /> New</NavLink>
+            <NavLink to="/popular" onClick={() => setMenuOpen(false)} className={menuLink}><Flame size={19} /> Popular</NavLink>
           </div>
 
-          <hr className="border-gray-100" />
+          <div style={{ borderTop:"1px solid var(--border)" }} className="pt-3">
+            <button onClick={toggleTheme} className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
+              {isDark ? <Sun size={18} style={{ color:"var(--muted)" }} /> : <Moon size={18} style={{ color:"var(--muted)" }} />}
+              {isDark ? "Light Mode" : "Dark Mode"}
+            </button>
+          </div>
 
-          {/* Auth section */}
-          {isAuthenticated ? (
-            <div className="flex flex-col gap-1">
-              <NavLink
-                to={`/user/${user?.id}`}
-                onClick={() => setIsMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
-              >
-                <User size={18} className="text-gray-400" /><span>My Profile</span>
+          {isAuthenticated && (
+            <div className="flex flex-col gap-1" style={{ borderTop:"1px solid var(--border)" }}>
+              <NavLink to={`/user/${user?.id}`} onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm rounded-xl hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
+                <User size={18} style={{ color:"var(--muted)" }} /> My Profile
               </NavLink>
-              <button
-                onClick={() => setIsMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-xl transition-colors w-full text-left"
-              >
-                <Settings size={18} className="text-gray-400" /><span>Settings</span>
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors w-full text-left"
-              >
-                <LogOut size={18} /><span>Logout</span>
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={() => { setIsMenuOpen(false); setShowLogin(true); }}
-                className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-[#1A4329] text-[#1A4329] rounded-full text-sm font-semibold hover:bg-green-50 transition-all"
-              >
-                <LogIn size={18} /><span>Sign In</span>
-              </button>
-              <button
-                onClick={() => { setIsMenuOpen(false); setShowLogin(true); }}
-                className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-[#1A4329] text-white rounded-full text-sm font-semibold hover:bg-opacity-90 shadow-sm transition-all"
-              >
-                <UserPlus size={18} /><span>Register</span>
+              <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 text-sm text-red-500 rounded-xl hover:bg-red-500/10 transition-colors w-full text-left">
+                <LogOut size={18} /> Logout
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* ── MOBILE BOTTOM NAV (logged in only) ── */}
-      {isAuthenticated && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 safe-area-inset-bottom">
-          <div className="flex items-center justify-around py-2 px-4">
-            <NavLink to="/home" className={mobileBottomLinkStyles}>
-              <Home size={24} />
-              <span className="text-xs">Home</span>
-            </NavLink>
-
-            <NavLink to="/new" className={mobileBottomLinkStyles}>
-              <Sparkles size={24} />
-              <span className="text-xs">New</span>
-            </NavLink>
-
-            {/* Create button — raised */}
-            <NavLink to="/create" className="flex flex-col items-center gap-1">
-              <div className="p-3 bg-[#1A4329] rounded-full text-white -mt-5 shadow-lg">
-                <PlusCircle size={22} />
-              </div>
-              <span className="text-xs text-gray-500 mt-0.5">Create</span>
-            </NavLink>
-
-            <NavLink to="/popular" className={mobileBottomLinkStyles}>
-              <Flame size={24} />
-              <span className="text-xs">Popular</span>
-            </NavLink>
-
-            <NavLink to={`/user/${user?.id}`} className={mobileBottomLinkStyles}>
-              {user?.profile_image ? (
-                <img src={user.profile_image} className="w-6 h-6 rounded-full object-cover" alt="" />
-              ) : (
-                <User size={24} />
-              )}
-              <span className="text-xs">You</span>
-            </NavLink>
-          </div>
+      {/* ── Mobile bottom nav ── */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40" style={{ backgroundColor:"var(--surface)", borderTop:"1px solid var(--border)" }}>
+        <div className="flex items-center justify-around py-2 px-1">
+          <NavLink to="/home"    className={botLink}><Home size={23}/><span className="text-[10px]">Home</span></NavLink>
+          <NavLink to="/new"     className={botLink}><Sparkles size={23}/><span className="text-[10px]">New</span></NavLink>
+          {isAuthenticated
+            ? <NavLink to="/create" className="flex flex-col items-center gap-0.5">
+                <div className="p-2.5 rounded-full text-white -mt-4 shadow-lg" style={{ backgroundColor:"var(--accent)" }}><PlusCircle size={22}/></div>
+                <span className="text-[10px]" style={{ color:"var(--muted)" }}>Create</span>
+              </NavLink>
+            : <button onClick={() => openLogin("login")} className="flex flex-col items-center gap-0.5">
+                <div className="p-2.5 rounded-full text-white -mt-4 shadow-lg" style={{ backgroundColor:"var(--accent)" }}><LogIn size={22}/></div>
+                <span className="text-[10px]" style={{ color:"var(--muted)" }}>Sign In</span>
+              </button>}
+          <NavLink to="/popular" className={botLink}><Flame size={23}/><span className="text-[10px]">Popular</span></NavLink>
+          {isAuthenticated
+            ? <NavLink to={`/user/${user?.id}`} className={botLink}>
+                {avatarSrc ? <img src={avatarSrc} className="w-6 h-6 rounded-full object-cover" alt="" /> : <User size={23}/>}
+                <span className="text-[10px]">You</span>
+              </NavLink>
+            : <button onClick={() => openLogin("register")} className="flex flex-col items-center gap-0.5 px-2 hover:text-[var(--accent)]" style={{ color:"var(--muted)" }}>
+                <UserPlus size={23}/><span className="text-[10px]">Register</span>
+              </button>}
         </div>
-      )}
+      </nav>
     </>
   );
 };
-
 export default Navbar;

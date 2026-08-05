@@ -37,9 +37,18 @@ export const authService = {
   async updateProfile(payload: {
     username: string;
     bio?: string;
-    profile_image?: string;
+    avatar?: File;
+    cover?: File;
   }): Promise<User> {
-    const { data } = await api.put<{ success: boolean; user: User }>("/auth/profile", payload);
+    const form = new FormData();
+    form.append("username", payload.username);
+    if (payload.bio)    form.append("bio", payload.bio);
+    if (payload.avatar) form.append("avatar", payload.avatar);
+    if (payload.cover)  form.append("cover", payload.cover);
+
+    const { data } = await api.put<{ success: boolean; user: User }>("/auth/profile", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     return data.user;
   },
 };

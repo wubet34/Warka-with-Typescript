@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import pool from "../config/db.js";
 import { AuthRequest } from "../middleware/authMiddleware.js";
+import { emitNewPost } from "../socket.js";
 
 export const createPost = async (req: Request, res: Response): Promise<void> => {
   const client = await pool.connect();
@@ -60,6 +61,9 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     );
 
     await client.query("COMMIT");
+
+    // Broadcast new post to feed and community rooms
+    emitNewPost(result.rows[0] as Record<string, unknown>);
 
     res.status(201).json({
       success: true,
@@ -222,6 +226,30 @@ export const getFeed = async (_req: Request, res: Response): Promise<void> => {
       GROUP BY p.id, u.id, c.id
       ORDER BY p.created_at DESC
       LIMIT 20
+    `);
+    res.status(200).json({ success: true, posts: result.rows });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
+
+export const getPopular = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await pool.query(`
+      SELECT p.id, p.title, p.content, p.image, p.link, p.vote_score, p.created_at,
+             u.id AS user_id, u.username,
+             c.id AS community_id, c.name AS community_name, c.slug AS community_slug,
+             COUNT(DISTINCT cm.id) AS comment_count,
+             -- popularity score: votes weighted 1x + comments weighted 2x
+             (p.vote_score + COUNT(DISTINCT cm.id) * 2) AS popularity_score
+      FROM posts p
+      JOIN users u ON p.user_id = u.id
+      JOIN communities c ON p.community_id = c.id
+      LEFT JOIN comments cm ON cm.post_id = p.id
+      GROUP BY p.id, u.id, c.id
+      ORDER BY popularity_score DESC, p.created_at DESC
+      LIMIT 50
     `);
     res.status(200).json({ success: true, posts: result.rows });
   } catch (error) {

@@ -1,14 +1,24 @@
 import multer, { FileFilterCallback } from "multer";
 import path from "path";
+import fs from "fs";
 import { Request } from "express";
+
+// Use process.cwd() so the path is always correct regardless of
+// how tsx resolves __dirname at runtime
+const uploadsDir = path.join(process.cwd(), "uploads");
+
+// Ensure the uploads directory exists at startup
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, "uploads/");
+    cb(null, uploadsDir);
   },
   filename: (_req, file, cb) => {
     const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${unique}${path.extname(file.originalname)}`);
+    cb(null, `${unique}${path.extname(file.originalname).toLowerCase()}`);
   },
 });
 
@@ -17,10 +27,11 @@ const fileFilter = (
   file: Express.Multer.File,
   cb: FileFilterCallback
 ) => {
-  const allowed = /jpeg|jpg|png|gif|webp/;
-  const ext = path.extname(file.originalname).toLowerCase();
-  const mime = file.mimetype;
-  if (allowed.test(ext) && allowed.test(mime)) {
+  const allowedExts = /\.(jpeg|jpg|png|gif|webp)$/i;
+  const allowedMimes = /^image\/(jpeg|png|gif|webp)$/;
+  const ext = path.extname(file.originalname);
+
+  if (allowedExts.test(ext) && allowedMimes.test(file.mimetype)) {
     cb(null, true);
   } else {
     cb(new Error("Only image files are allowed (jpg, png, gif, webp)."));

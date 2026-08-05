@@ -2,41 +2,48 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Navbar from './components/layout/Navbar'
 import HomeFeed from './pages/HomeFeed'
 import NewFeed from './pages/NewFeed'
+import PopularFeed from './pages/PopularFeed'
 import CommunityPage from './pages/CommunityPage'
 import UserProfile from './pages/UserProfile'
+import PostDetail from './pages/PostDetail'
+import SearchPage from './pages/SearchPage'
+import CreatePostPage from './pages/CreatePostPage'
 import Sidebar from './components/layout/Sidebar'
 import RightSidebar from './pages/RightSidebar'
 
 function App() {
   return (
-    <div className="min-h-screen bg-[#F0F2F5] text-gray-800 font-sans">
+    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] font-sans">
       <Navbar />
 
-      {/* On mobile: full width, scrollable. On desktop: 3-col fixed layout */}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 lg:py-6">
         <div className="flex gap-4 lg:gap-6">
 
           {/* Left Sidebar — desktop only */}
           <aside className="hidden lg:block w-64 xl:w-72 shrink-0">
-            <div className="sticky top-6">
+            <div className="sticky top-[76px]">
               <Sidebar />
             </div>
           </aside>
 
-          {/* Main feed — full width on mobile, center col on desktop */}
-          <main className="flex-1 min-w-0 pb-20 lg:pb-6">
+          {/* Main content — full width on mobile */}
+          <main className="flex-1 min-w-0 pb-24 lg:pb-8">
             <Routes>
-              <Route path="/" element={<Navigate to="/home" replace />} />
-              <Route path="/home" element={<HomeFeed />} />
-              <Route path="/new" element={<NewFeed />} />
+              <Route path="/"                 element={<Navigate to="/home" replace />} />
+              <Route path="/home"             element={<HomeFeed />} />
+              <Route path="/new"              element={<NewFeed />} />
+              <Route path="/popular"          element={<PopularFeed />} />
+              <Route path="/create"           element={<CreatePostPage />} />
+              <Route path="/search"           element={<SearchPage />} />
               <Route path="/w/:communitySlug" element={<CommunityPage />} />
-              <Route path="/user/:id" element={<UserProfile />} />
+              <Route path="/post/:id"         element={<PostDetail />} />
+              <Route path="/user/:id"         element={<UserProfile />} />
             </Routes>
           </main>
 
           {/* Right Sidebar — desktop only */}
           <aside className="hidden xl:block w-64 shrink-0">
-            <div className="sticky top-6">
+            <div className="sticky top-[76px]">
               <RightSidebar />
             </div>
           </aside>

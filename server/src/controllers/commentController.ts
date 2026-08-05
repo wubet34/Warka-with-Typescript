@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import pool from "../config/db.js";
 import { AuthRequest } from "../middleware/authMiddleware.js";
+import { emitNewComment } from "../socket.js";
 
 export const createComment = async (req: Request, res: Response): Promise<void> => {
   const client = await pool.connect();
@@ -42,6 +43,9 @@ export const createComment = async (req: Request, res: Response): Promise<void> 
     );
 
     await client.query("COMMIT");
+
+    // Broadcast new comment to anyone viewing this post
+    emitNewComment(post_id, result.rows[0] as Record<string, unknown>);
 
     res.status(201).json({
       success: true,
