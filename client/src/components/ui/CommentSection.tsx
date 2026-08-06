@@ -16,7 +16,7 @@ const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
   const [loading, setLoading]   = useState(false);
   const [text, setText]         = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [count, setCount]       = useState(initialCount);
+  const [, setCount]       = useState(initialCount);
 
   useEffect(() => {
     setLoading(true);

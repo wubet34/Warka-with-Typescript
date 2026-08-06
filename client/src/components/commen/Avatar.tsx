@@ -1,8 +1,10 @@
+import type { CSSProperties } from "react";
 interface AvatarProps {
   username?: string;
   src?: string;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
+  style?: CSSProperties;
 }
 
 const sizeMap = {
