@@ -7,6 +7,11 @@ const PORT = process.env.PORT || 5000;
 
 const httpServer = createServer(app);
 initSocket(httpServer);
+app.get("/", (req, res) => {
+  res.json({
+    message: "Warka API is running successfully 🚀"
+  });
+});
 
 httpServer.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
