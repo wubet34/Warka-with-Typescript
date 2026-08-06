@@ -24,7 +24,7 @@ A Reddit-style community platform built with React + TypeScript (frontend) and E
 ### 1. Clone & install
 
 ```bash
-git clone <repo>
+git clone https://github.com/wubet34/Warka-with-Typescript.git
 cd Warka_With_TypeScript
 
 # Install server deps
