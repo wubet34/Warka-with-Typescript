@@ -16,18 +16,44 @@ const app = express();
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (curl, mobile apps, server-to-server)
-      if (!origin) return callback(null, true);
-      // Allow any localhost / 127.0.0.1 port in development
-      if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      // Allow requests without origin (Postman, Bruno, mobile apps, server-to-server)
+      if (!origin) {
         return callback(null, true);
       }
-      // Allow configured CLIENT_URL in production
-      const allowed = process.env.CLIENT_URL;
-      if (allowed && origin === allowed) return callback(null, true);
-      callback(new Error(`CORS blocked: ${origin}`));
+
+      const allowedOrigins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://warka-app.vercel.app",
+      ];
+
+      // Allow exact allowed origins
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Allow Vercel preview deployments
+      if (origin.endsWith(".vercel.app")) {
+        return callback(null, true);
+      }
+
+      console.log("CORS blocked origin:", origin);
+      return callback(null, false);
     },
+
     credentials: true,
+    methods: [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS",
+    ],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+    ],
   })
 );
 
