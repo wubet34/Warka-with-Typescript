@@ -1,10 +1,7 @@
 import multer, { FileFilterCallback } from "multer";
 import path from "path";
-import fs from "fs";
 import { Request } from "express";
-
-const uploadsDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+import { uploadsDir } from "../utils/uploads.js";
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
