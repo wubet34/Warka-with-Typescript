@@ -2,7 +2,10 @@ import { Request, Response } from "express";
 import pool from "../config/db.js";
 
 export const getMedia = async (req: Request, res: Response): Promise<void> => {
-  if (!/^[1-9]\d*$/.test(req.params.id)) {
+  const paramId = req.params.id;
+  const mediaId = Array.isArray(paramId) ? paramId[0] : paramId;
+
+  if (!mediaId || !/^[1-9]\d*$/.test(mediaId)) {
     res.status(400).send("Invalid image id.");
     return;
   }
@@ -10,7 +13,7 @@ export const getMedia = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query(
       "SELECT content_type, data FROM media_assets WHERE id = $1",
-      [req.params.id]
+      [mediaId]
     );
 
     if (result.rows.length === 0) {
