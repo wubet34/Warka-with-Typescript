@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, Users, FileText } from "lucide-react";
+import { Users, FileText } from "lucide-react";
 import type { Community, Post } from "../types/index";
 import { communityService } from "../services/communityService";
 import { useAuth } from "../context/AuthContext";
@@ -9,6 +9,7 @@ import PostCard from "../components/ui/PostCard";
 import CreatePostForm from "../components/ui/CreatePostForm";
 import RealtimePostNotice from "../components/ui/RealtimePostNotice";
 import api from "../api/client";
+import { CommunityPageSkeleton } from "../components/ui/LoadingSkeleton";
 
 const CommunityPage = () => {
   const { communitySlug } = useParams<{ communitySlug: string }>();
@@ -90,7 +91,7 @@ const CommunityPage = () => {
   };
 
   if (loading) return (
-    <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin" style={{ color: "var(--accent)" }} /></div>
+    <CommunityPageSkeleton />
   );
   if (error || !community) return (
     <p className="text-center py-16 text-sm text-red-500">{error || "Community not found."}</p>

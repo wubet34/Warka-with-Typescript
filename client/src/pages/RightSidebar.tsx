@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { Users, TrendingUp, Search, Loader2, Plus, LogIn } from "lucide-react";
+import { Users, TrendingUp, Search, Plus, LogIn } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import type { Community } from "../types/index";
 import { communityService } from "../services/communityService";
 import { useAuth } from "../context/AuthContext";
 import CreateCommunityModal from "../components/ui/CreateCommunityModal";
+import { RowSkeleton } from "../components/ui/LoadingSkeleton";
 
 interface CommunityWithMembership extends Community {
   isMember: boolean;
@@ -93,9 +94,7 @@ const RightSidebar = () => {
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-6">
-              <Loader2 size={18} className="animate-spin" style={{ color: "var(--accent)" }} />
-            </div>
+            <RowSkeleton count={4} />
           ) : items.length === 0 ? (
             <p className="text-xs text-center py-4" style={{ color: "var(--muted)" }}>No communities yet.</p>
           ) : (

@@ -1,5 +1,6 @@
 import type { SearchResults } from "../../services/searchService";
 import { imgUrl } from "../../utils/imageUrl";
+import { SkeletonBlock } from "./LoadingSkeleton";
 
 interface Props {
   query: string;
@@ -14,7 +15,10 @@ export default function SearchSuggestions({ query, results, loading, onSelect }:
   return (
     <div className="absolute top-full left-0 mt-2 w-[min(90vw,20rem)] lg:w-80 rounded-xl shadow-2xl z-[60] overflow-hidden"
       style={{ backgroundColor:"var(--surface)", border:"1px solid var(--border)" }}>
-      {loading && <p className="px-3 py-3 text-sm" style={{ color:"var(--muted)" }}>Searching…</p>}
+      {loading && <div className="space-y-3 px-3 py-3" aria-label="Searching" role="status">
+        <SkeletonBlock className="h-3 w-2/5" />
+        <SkeletonBlock className="h-3 w-4/5" />
+      </div>}
       {!loading && results?.communities.length ? <section>
         <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color:"var(--muted)", borderBottom:"1px solid var(--border)" }}>Communities</p>
         {results.communities.slice(0,3).map(c => <button key={c.id} onClick={() => onSelect(`/w/${c.slug}`)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-[var(--surface2)]">

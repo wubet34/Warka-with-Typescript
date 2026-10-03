@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Loader2, Flame, TrendingUp } from "lucide-react";
+import { Flame, TrendingUp } from "lucide-react";
 import type { Post } from "../types/index";
 import { postService } from "../services/postService";
 import PostCard from "../components/ui/PostCard";
+import { PostListSkeleton } from "../components/ui/LoadingSkeleton";
 
 const PopularFeed = () => {
   const [posts, setPosts]     = useState<Post[]>([]);
@@ -30,7 +31,7 @@ const PopularFeed = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 size={28} className="animate-spin" style={{ color: "var(--accent)" }} /></div>
+        <PostListSkeleton />
       ) : error ? (
         <p className="text-center py-12 text-sm text-red-500">{error}</p>
       ) : posts.length === 0 ? (

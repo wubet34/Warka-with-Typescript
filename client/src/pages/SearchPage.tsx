@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, NavLink } from "react-router-dom";
-import { Loader2, Search, Users, FileText, Hash } from "lucide-react";
+import { Search, Users, FileText, Hash } from "lucide-react";
 import type { Post, User, Community } from "../types/index";
 import { searchService } from "../services/searchService";
 import { imgUrl } from "../utils/imageUrl";
 import PostCard from "../components/ui/PostCard";
+import { PostListSkeleton } from "../components/ui/LoadingSkeleton";
 
 type Tab = "all" | "posts" | "people" | "communities";
 
@@ -95,7 +96,7 @@ const SearchPage = () => {
       </div>}
 
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin" style={{ color: "var(--accent)" }} /></div>
+        <PostListSkeleton count={2} />
       ) : !searched ? null : posts.length + users.length + communities.length === 0 ? (
         <div className="text-center py-16" style={{ color: "var(--muted)" }}>
           <Search size={40} className="mx-auto mb-3 opacity-30" />

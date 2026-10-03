@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
 import type { Post } from "../types/index";
 import { postService } from "../services/postService";
 import { useAuth } from "../context/AuthContext";
@@ -8,6 +7,7 @@ import PostCard from "../components/ui/PostCard";
 import CreatePostForm from "../components/ui/CreatePostForm";
 import RealtimePostNotice from "../components/ui/RealtimePostNotice";
 import warkaLogo from "../assets/warka-logo-web.png";
+import { PostListSkeleton } from "../components/ui/LoadingSkeleton";
 
 const HomeFeed = () => {
   const { isAuthenticated, user } = useAuth();
@@ -64,7 +64,7 @@ const HomeFeed = () => {
       {isAuthenticated && <CreatePostForm onPostCreated={p => setPosts(prev => prev.some(existing => existing.id === p.id) ? prev : [p, ...prev])} />}
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 size={28} className="animate-spin" style={{ color: "var(--accent)" }} /></div>
+        <PostListSkeleton />
       ) : error ? (
         <p className="text-center py-12 text-sm text-red-500">{error}</p>
       ) : posts.length === 0 ? (

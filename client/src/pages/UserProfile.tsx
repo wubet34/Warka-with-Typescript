@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, useParams } from "react-router-dom";
-import { Loader2, FileText, BadgeCheck, CalendarDays, Pencil, Users, ArrowBigUp, Trophy, Plus } from "lucide-react";
+import { FileText, BadgeCheck, CalendarDays, Pencil, Users, ArrowBigUp, Trophy, Plus } from "lucide-react";
 import type { User, Post, Community } from "../types/index";
 import { useAuth } from "../context/AuthContext";
 import PostCard from "../components/ui/PostCard";
@@ -8,6 +8,7 @@ import EditProfileModal from "../components/ui/EditProfileModal";
 import api from "../api/client";
 import { formatDate } from "../utils/formatDate";
 import { imgUrl } from "../utils/imageUrl";
+import { ProfilePageSkeleton } from "../components/ui/LoadingSkeleton";
 
 type ProfileCommunity = Pick<Community, "id" | "name" | "slug">;
 type ProfileUser = User & {
@@ -42,7 +43,7 @@ const UserProfile = () => {
   }, [id]);
 
   if (loading) return (
-    <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin" style={{ color: "var(--accent)" }} /></div>
+    <ProfilePageSkeleton />
   );
   if (error || !profile) return (
     <p className="text-center py-16 text-sm text-red-500">{error || "User not found."}</p>

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import type { Post } from "../types/index";
 import { postService } from "../services/postService";
 import PostCard from "../components/ui/PostCard";
 import RealtimePostNotice from "../components/ui/RealtimePostNotice";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
+import { PostListSkeleton } from "../components/ui/LoadingSkeleton";
 
 const NewFeed = () => {
   const { user } = useAuth();
@@ -51,7 +52,7 @@ const NewFeed = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 size={28} className="animate-spin" style={{ color: "var(--accent)" }} /></div>
+        <PostListSkeleton />
       ) : error ? (
         <p className="text-center py-12 text-sm text-red-500">{error}</p>
       ) : posts.length === 0 ? (

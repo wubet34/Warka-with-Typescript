@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Bell, MessageCircle, ChevronUp, Check, Trash2, Loader2, AtSign, Newspaper } from "lucide-react";
+import { Bell, MessageCircle, ChevronUp, Check, Trash2, AtSign, Newspaper } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { notificationService } from "../../services/notificationService";
 import { useSocket } from "../../context/SocketContext";
@@ -8,6 +8,7 @@ import { useSettings } from "../../context/SettingsContext";
 import type { Notification } from "../../types/notification";
 import { formatDate } from "../../utils/formatDate";
 import { imgUrl } from "../../utils/imageUrl";
+import { RowSkeleton } from "./LoadingSkeleton";
 
 const typeIcon = (type: Notification["type"]) => {
   switch (type) {
@@ -152,9 +153,7 @@ const NotificationDropdown = () => {
           {/* List */}
           <div className="overflow-y-auto max-h-[420px]">
             {loading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 size={20} className="animate-spin" style={{ color: "var(--accent)" }} />
-              </div>
+              <RowSkeleton count={4} />
             ) : notifications.length === 0 ? (
               <div className="flex flex-col items-center py-10 gap-2" style={{ color: "var(--muted)" }}>
                 <Bell size={28} className="opacity-30" />

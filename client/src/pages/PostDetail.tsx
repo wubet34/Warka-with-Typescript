@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, NavLink } from "react-router-dom";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import type { Post } from "../types/index";
 import { postService } from "../services/postService";
 import PostCard from "../components/ui/PostCard";
+import { DetailPageSkeleton } from "../components/ui/LoadingSkeleton";
 
 const PostDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -18,7 +19,7 @@ const PostDetail = () => {
   }, [id]);
 
   if (loading) return (
-    <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin" style={{ color: "var(--accent)" }} /></div>
+    <DetailPageSkeleton />
   );
 
   if (error || !post) return (

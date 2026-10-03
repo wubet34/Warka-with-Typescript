@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Send, Loader2 } from "lucide-react";
+import { Send } from "lucide-react";
 import type { Comment } from "../../types/index";
 import { commentService } from "../../services/commentService";
 import { useAuth } from "../../context/AuthContext";
 import Login from "../Login";
 import { useSocket } from "../../context/SocketContext";
 import CommentItem, { buildTree } from "./CommentItem";
+import { RowSkeleton } from "./LoadingSkeleton";
 
 interface Props { postId: number; initialCount: number; onCountChange?: (n: number) => void; }
 
@@ -104,7 +105,7 @@ const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
 
       <div className="px-3 sm:px-4 py-3" style={{ backgroundColor: "var(--surface2)" }}>
         {loading ? (
-          <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin" style={{ color: "var(--accent)" }} /></div>
+          <RowSkeleton count={3} />
         ) : tree.length === 0 ? (
           <p className="text-xs text-center py-3" style={{ color: "var(--muted)" }}>
             {isAuthenticated ? "No comments yet. Be the first!" : "No comments yet."}
