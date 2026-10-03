@@ -1,8 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { io, Socket } from "socket.io-client";
-
-const SOCKET_URL = (import.meta.env.VITE_API_URL as string)
-  .replace(/\/api\/?$/, "");
+import { SERVER_BASE_URL } from "../utils/apiUrl";
 
 interface SocketContextType {
   socket: Socket;
@@ -21,7 +19,7 @@ const SocketContext = createContext<SocketContextType | null>(null);
 export const SocketProvider = ({ children }: { children: ReactNode }) => {
   const socketRef = useRef<Socket | null>(null);
   if (!socketRef.current) {
-    socketRef.current = io(SOCKET_URL, { autoConnect: true, transports: ["websocket", "polling"] });
+    socketRef.current = io(SERVER_BASE_URL, { autoConnect: true, transports: ["websocket", "polling"] });
   }
   const socket = socketRef.current;
   const activeRooms = useRef(new Map<string, { joinEvent: string; leaveEvent: string; id?: number }>());

@@ -18,18 +18,23 @@ const SearchPage = () => {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading]       = useState(false);
   const [searched, setSearched]     = useState("");
+  const [searchError, setSearchError] = useState(false);
   const requestRef = useRef(0);
 
   const doSearch = useCallback(async (query: string) => {
     const requestId = ++requestRef.current;
     setLoading(true);
+    setSearchError(false);
     try {
       const r = await searchService.searchAll(query.trim());
       if (requestId !== requestRef.current) return;
       setPosts(r.posts); setUsers(r.users); setCommunities(r.communities);
       setSearched(query.trim());
     } catch (e) {
-      if (requestId === requestRef.current) console.error(e);
+      if (requestId === requestRef.current) {
+        console.error(e);
+        setSearchError(true);
+      }
     } finally {
       if (requestId === requestRef.current) setLoading(false);
     }
@@ -63,9 +68,9 @@ const SearchPage = () => {
   const card = { backgroundColor: "var(--surface)", border: "1px solid var(--border)" };
 
   return (
-    <div className="mx-auto w-[94%] min-w-0 max-w-2xl space-y-4 sm:w-full">
+    <div className="mx-auto w-full min-w-0 max-w-2xl space-y-4">
       {/* Header */}
-      {q.trim() && <div className="rounded-2xl px-4 py-4" style={card}>
+      {q.trim() && <div className="min-w-0 rounded-2xl px-4 py-4" style={card}>
         <div className="flex items-center gap-2 mb-1">
           <Search size={16} style={{ color: "var(--accent)" }} />
           <span className="text-xs" style={{ color: "var(--muted)" }}>Search results for</span>
@@ -74,17 +79,17 @@ const SearchPage = () => {
       </div>}
 
       {/* Tabs */}
-      {(q.trim() || searched) && <div className="flex gap-1 rounded-2xl p-1.5" style={card}>
+      {(q.trim() || searched) && <div className="grid min-w-0 grid-cols-2 gap-1.5 rounded-2xl p-2 sm:grid-cols-4 sm:gap-1.5" style={card}>
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-semibold transition-colors"
+            className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold transition-colors sm:px-2"
             style={tab === t.key
               ? { backgroundColor: "var(--accent)", color: "#fff" }
               : { color: "var(--muted)" }}>
             {t.icon}
-            <span className="hidden sm:inline">{t.label}</span>
+            <span className="truncate">{t.label}</span>
             {searched && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full"
+              <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full"
                 style={tab === t.key
                   ? { backgroundColor: "rgba(255,255,255,0.2)", color: "#fff" }
                   : { backgroundColor: "var(--surface2)", color: "var(--muted)" }}>
@@ -97,6 +102,12 @@ const SearchPage = () => {
 
       {loading ? (
         <PostListSkeleton count={2} />
+      ) : searchError ? (
+        <div className="mx-auto max-w-md rounded-2xl px-4 py-8 text-center" style={card}>
+          <p className="text-sm font-medium" style={{ color: "var(--text)" }}>Search is temporarily unavailable.</p>
+          <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>Please try again in a moment.</p>
+          <button onClick={() => doSearch(q)} className="mt-4 rounded-full px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: "var(--accent)" }}>Try again</button>
+        </div>
       ) : !searched ? null : posts.length + users.length + communities.length === 0 ? (
         <div className="text-center py-16" style={{ color: "var(--muted)" }}>
           <Search size={40} className="mx-auto mb-3 opacity-30" />

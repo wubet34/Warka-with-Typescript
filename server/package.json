@@ -4,7 +4,7 @@
   "description": "Warka backend API",
   "main": "dist/server.js",
   "scripts": {
-    "dev":   "tsx watch src/server.ts",
+    "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "migrate": "tsx src/db/migrate.ts",
     "start": "node dist/server.js"
@@ -21,6 +21,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "google-auth-library": "^10.9.1",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
     "pg": "^8.21.0",

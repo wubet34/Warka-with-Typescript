@@ -1,9 +1,12 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { OAuth2Client } from "google-auth-library";
 import pool from "../config/db.js";
 import { AuthRequest } from "../middleware/authMiddleware.js";
 import { storeImage } from "../utils/media.js";
+
+const googleClient = new OAuth2Client();
 
 export const getMe = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -73,6 +76,97 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+export const googleLogin = async (req: Request, res: Response): Promise<void> => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const { credential } = req.body as { credential?: string };
+
+  if (!clientId) {
+    res.status(503).json({ success: false, message: "Google sign-in is not configured." });
+    return;
+  }
+  if (!credential) {
+    res.status(400).json({ success: false, message: "Google credential is required." });
+    return;
+  }
+
+  let payload;
+  try {
+    const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: clientId });
+    payload = ticket.getPayload();
+  } catch {
+    res.status(401).json({ success: false, message: "Google sign-in could not be verified." });
+    return;
+  }
+
+  if (!payload?.sub || !payload.email || payload.email_verified !== true) {
+    res.status(401).json({ success: false, message: "A verified Google email is required." });
+    return;
+  }
+
+  try {
+    const email = payload.email.trim().toLowerCase();
+    const existing = await pool.query(
+      `SELECT id, username, email, google_id FROM users
+       WHERE google_id = $1 OR LOWER(email) = $2 LIMIT 1`,
+      [payload.sub, email]
+    );
+
+    let user: { id: number; username: string; email: string };
+    if (existing.rows.length > 0) {
+      const current = existing.rows[0];
+      if (current.google_id && current.google_id !== payload.sub) {
+        res.status(409).json({ success: false, message: "This email is linked to a different Google account." });
+        return;
+      }
+
+      const updated = await pool.query(
+        `UPDATE users
+         SET google_id = $1, email = $2, profile_image = COALESCE(profile_image, $3)
+         WHERE id = $4
+         RETURNING id, username, email`,
+        [payload.sub, email, payload.picture ?? null, current.id]
+      );
+      user = updated.rows[0];
+    } else {
+      const base = (payload.given_name || email.split("@")[0])
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, "")
+        .slice(0, 30) || "warkauser";
+      let username = base;
+      let suffix = 1;
+      while ((await pool.query("SELECT 1 FROM users WHERE LOWER(username) = LOWER($1)", [username])).rows.length > 0) {
+        const tail = `_${suffix++}`;
+        username = `${base.slice(0, 30 - tail.length)}${tail}`;
+      }
+
+      const inserted = await pool.query(
+        `INSERT INTO users (username, email, password_hash, google_id, profile_image)
+         VALUES ($1, $2, NULL, $3, $4)
+         RETURNING id, username, email`,
+        [username, email, payload.sub, payload.picture ?? null]
+      );
+      user = inserted.rows[0];
+    }
+
+    const token = jwt.sign(
+      { id: user.id, username: user.username, email: user.email },
+      process.env.JWT_SECRET as string,
+      { expiresIn: "7d" }
+    );
+    res.status(200).json({
+      success: true,
+      message: "Login successful.",
+      token,
+      user: { id: user.id, username: user.username, email: user.email },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
+
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body as { email: string; password: string };
@@ -96,7 +190,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     const user = result.rows[0];
-    const isMatch = await bcrypt.compare(password, user.password_hash);
+    const isMatch = user.password_hash
+      ? await bcrypt.compare(password, user.password_hash)
+      : false;
 
     if (!isMatch) {
       res.status(401).json({ success: false, message: "Invalid email or password." });

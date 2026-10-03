@@ -13,7 +13,7 @@ export default function SearchSuggestions({ query, results, loading, onSelect }:
   if (!query.trim()) return null;
   const hasResults = !!results && (results.posts.length + results.users.length + results.communities.length > 0);
   return (
-    <div className="absolute top-full left-0 mt-2 w-[min(90vw,20rem)] lg:w-80 rounded-xl shadow-2xl z-[60] overflow-hidden"
+    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[min(calc(100vw-1.5rem),24rem)] lg:left-0 lg:translate-x-0 lg:w-80 rounded-xl shadow-2xl z-[60] overflow-hidden"
       style={{ backgroundColor:"var(--surface)", border:"1px solid var(--border)" }}>
       {loading && <div className="space-y-3 px-3 py-3" aria-label="Searching" role="status">
         <SkeletonBlock className="h-3 w-2/5" />

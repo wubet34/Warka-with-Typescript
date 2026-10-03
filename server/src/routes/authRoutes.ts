@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { register, login, getMe, updateProfile } from "../controllers/authController.js";
+import { register, login, googleLogin, getMe, updateProfile } from "../controllers/authController.js";
 import { authenticate } from "../middleware/authMiddleware.js";
 import { uploadProfile } from "../middleware/uploadProfile.js";
 
@@ -16,6 +16,7 @@ function runProfileUpload(req: Request, res: Response): Promise<void> {
 
 router.post("/register", register);
 router.post("/login", login);
+router.post("/google", googleLogin);
 router.get("/me", authenticate, getMe);
 router.put("/profile", authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {

@@ -2,11 +2,12 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { LogIn, UserPlus, X, Eye, EyeOff, Mail, Lock, User } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import GoogleSignInButton from "./GoogleSignInButton";
 
 interface Props { onClose: () => void; defaultMode?: "login" | "register"; message?: string; }
 
 const Login = ({ onClose, defaultMode = "login", message }: Props) => {
-  const { login, register } = useAuth();
+  const { login, loginWithGoogle, register } = useAuth();
   const [mode, setMode]               = useState<"login"|"register">(defaultMode);
   const [form, setForm]               = useState({ username:"", email:"", password:"" });
   const [showPass, setShowPass]       = useState(false);
@@ -25,6 +26,16 @@ const Login = ({ onClose, defaultMode = "login", message }: Props) => {
       else { await register(form.username, form.email, form.password); setSuccess("Account created! Please sign in."); switchMode("login"); }
     } catch (err: unknown) {
       setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Something went wrong.");
+    } finally { setLoading(false); }
+  };
+
+  const handleGoogleCredential = async (credential: string) => {
+    setLoading(true); setError("");
+    try {
+      await loginWithGoogle(credential);
+      onClose();
+    } catch (err: unknown) {
+      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Google sign-in failed.");
     } finally { setLoading(false); }
   };
 
@@ -119,6 +130,13 @@ const Login = ({ onClose, defaultMode = "login", message }: Props) => {
               <>{mode === "login" ? <LogIn size={16} /> : <UserPlus size={16} />}{mode === "login" ? "Sign In" : "Create Account"}</>
             )}
           </button>
+
+          <div className="flex items-center gap-3 py-1 text-xs" style={{ color:"var(--muted)" }}>
+            <span className="h-px flex-1" style={{ backgroundColor:"var(--border)" }} />
+            or continue with
+            <span className="h-px flex-1" style={{ backgroundColor:"var(--border)" }} />
+          </div>
+          <GoogleSignInButton onCredential={handleGoogleCredential} disabled={loading} />
 
           <p className="text-xs text-center pt-1" style={{ color:"var(--muted)" }}>
             {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}

@@ -73,6 +73,16 @@ Open `http://localhost:5173`
 
 ## Deploy to Production
 
+### Google sign-in and admin access
+
+1. In Google Cloud Console, create an OAuth client ID for a Web application.
+2. Add `http://localhost:5173` and your production Vercel origin under **Authorized JavaScript origins**.
+3. Set `GOOGLE_CLIENT_ID` in `server/.env` and the Render environment to that client ID.
+4. Set `VITE_GOOGLE_CLIENT_ID` in `client/.env` and the Vercel environment to the same client ID if you use a different Google client. The project Web client ID is the frontend fallback and must be listed under **Authorized JavaScript origins** for your production Vercel domain. Never put a client secret in a `VITE_*` variable.
+5. Set `ADMIN_EMAIL` in the server/Render environment and `VITE_ADMIN_EMAIL` in client/Vercel to the exact email you will use for your Warka owner account. The API checks the server value before returning counts.
+
+Google sign-in creates a Warka account on first use, or links an existing account with the same verified email. Apply the database migration below before enabling Google sign-in on an existing database.
+
 ### Step 1 — NeonDB (database)
 
 1. Go to [neon.tech](https://neon.tech) → Create a project → Create database `warka_db`
@@ -84,7 +94,7 @@ cd server
 DATABASE_URL="your_neon_connection_string" npm run migrate
 ```
 
-Run this from `server/`. The migration initializes the tables used by the application, including shared image storage. New post and profile uploads are stored in PostgreSQL so local and deployed app instances can serve the same image URLs.
+Run this from `server/`. The migration initializes the tables used by the application, including shared image storage and Google account IDs. New post and profile uploads are stored in PostgreSQL so local and deployed app instances can serve the same image URLs.
 
 ---
 
@@ -129,7 +139,8 @@ Run this from `server/`. The migration initializes the tables used by the applic
 
 | Key | Value |
 |-----|-------|
-| `VITE_API_URL` | `https://warka-server.onrender.com/api` |
+| `VITE_API_URL` | `https://warka-server.onrender.com/api` (the frontend falls back to this Render URL if unset) |
+| `VITE_GOOGLE_CLIENT_ID` | Same public Web client ID as Render's `GOOGLE_CLIENT_ID` (only needed when overriding the project default) |
 
 4. Deploy → copy your Vercel URL
 
@@ -148,6 +159,8 @@ Run this from `server/`. The migration initializes the tables used by the applic
 ## Features
 
 - **Auth** — Register, login, JWT sessions, persistent across reloads
+- **Google sign-in** — Google Identity Services with server-verified ID tokens
+- **Admin dashboard** — Total registered users and signups in the last 30 days at `/admin`
 - **Posts** — Text, image upload, link posts with preview
 - **Feed** — Home (recent), New (all posts), Popular (ranked by votes + comments)
 - **Communities** — Create, join/leave, post directly to community

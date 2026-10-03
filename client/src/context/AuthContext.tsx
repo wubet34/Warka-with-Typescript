@@ -14,6 +14,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   updateUser: (updated: User) => void;
@@ -37,8 +38,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const data = await authService.login({ email, password });
+  const saveSession = async (data: { token: string; user: User }) => {
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
     setToken(data.token);
@@ -50,6 +50,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch {
       setUser(data.user);
     }
+  };
+
+  const login = async (email: string, password: string) => {
+    const data = await authService.login({ email, password });
+    await saveSession(data);
+  };
+
+  const loginWithGoogle = async (credential: string) => {
+    const data = await authService.loginWithGoogle(credential);
+    await saveSession(data);
   };
 
   const register = async (username: string, email: string, password: string) => {
@@ -76,6 +86,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAuthenticated: !!token,
         loading,
         login,
+        loginWithGoogle,
         register,
         logout,
         updateUser,

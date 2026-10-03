@@ -226,7 +226,7 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
 
           {/* Title */}
           <h3 onClick={() => navigate(`/post/${post.id}`)}
-            className="text-sm font-semibold mb-1.5 leading-snug cursor-pointer hover:text-(--accent) transition-colors"
+            className="break-words text-sm font-semibold mb-1.5 leading-snug cursor-pointer hover:text-(--accent) transition-colors"
             style={{ color: "var(--text)" }}>
             {displayTitle}
           </h3>
