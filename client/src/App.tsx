@@ -10,6 +10,7 @@ import SearchPage from './pages/SearchPage'
 import CreatePostPage from './pages/CreatePostPage'
 import Sidebar from './components/layout/Sidebar'
 import RightSidebar from './pages/RightSidebar'
+import SettingsPage from './pages/SettingsPage'
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
               <Route path="/popular"          element={<PopularFeed />} />
               <Route path="/create"           element={<CreatePostPage />} />
               <Route path="/search"           element={<SearchPage />} />
+              <Route path="/settings"         element={<SettingsPage />} />
               <Route path="/w/:communitySlug" element={<CommunityPage />} />
               <Route path="/post/:id"         element={<PostDetail />} />
               <Route path="/user/:id"         element={<UserProfile />} />

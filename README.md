@@ -25,20 +25,20 @@ A Reddit-style community platform built with React + TypeScript (frontend) and E
 
 ```bash
 git clone https://github.com/wubet34/Warka-with-Typescript.git
-cd Warka_With_TypeScript
+cd Warka-with-Typescript
 
 # Install server deps
-cd server && npm install
+cd server && npm ci
 
 # Install client deps
-cd ../client && npm install
+cd ../client && npm ci
 ```
 
 ### 2. Set up local DB
 
 ```bash
 psql -U postgres -c "CREATE DATABASE warka_db;"
-# Run all schema files
+# Create the tables (from the project root)
 psql -d warka_db -f server/src/db/schema.db
 psql -d warka_db -f server/src/db/notifications.sql
 ```
@@ -48,12 +48,14 @@ psql -d warka_db -f server/src/db/notifications.sql
 ```bash
 # Server
 cp server/.env.example server/.env
-# Edit server/.env — set DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, JWT_SECRET
+# Edit server/.env with your local database settings and a unique JWT_SECRET
 
 # Client
 cp client/.env.example client/.env
 # Edit client/.env — set VITE_API_URL=http://localhost:5000/api
 ```
+
+Never commit `.env` files. The committed `.env.example` files contain placeholders only.
 
 ### 4. Run
 
@@ -82,6 +84,8 @@ cd server
 DATABASE_URL="your_neon_connection_string" npx tsx src/db/migrate.ts
 ```
 
+Run this from `server/`. The command initializes the tables used by the application.
+
 ---
 
 ### Step 2 — Render (backend)
@@ -90,7 +94,7 @@ DATABASE_URL="your_neon_connection_string" npx tsx src/db/migrate.ts
 2. Connect your GitHub repo
 3. Settings:
    - **Root directory**: `server`
-   - **Build command**: `npm install && npm run build`
+   - **Build command**: `npm ci && npm run build`
    - **Start command**: `npm start`
    - **Node version**: 20
 
@@ -129,16 +133,15 @@ DATABASE_URL="your_neon_connection_string" npx tsx src/db/migrate.ts
 
 4. Deploy → copy your Vercel URL
 
-5. **Go back to Render** → update `CLIENT_URL` to your Vercel URL → redeploy
+5. **Go back to Render** → set `CLIENT_URL` to your Vercel URL → redeploy (this is required for Socket.IO connections)
 
 ---
 
-### Step 4 — Update CORS
+### Before pushing changes
 
-In `server/.env` (or Render env vars):
-```
-CLIENT_URL=https://your-app.vercel.app
-```
+- Keep real credentials in Render/Vercel environment settings and local `.env` files; never put them in source files or commit them.
+- Confirm `client/.env` points at the deployed API when making a production frontend build. Vercel uses `VITE_API_URL` from its project environment settings.
+- Uploaded images are stored on Render's persistent disk. Keep the disk mounted at the path configured by `UPLOADS_DIR` so uploads survive deploys.
 
 ---
 

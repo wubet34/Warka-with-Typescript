@@ -123,30 +123,39 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 export const updateProfile = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as AuthRequest).user.id;
-    const { username, bio } = req.body as { username: string; bio?: string };
+    const { username: requestedUsername, bio } = req.body as { username?: string; bio?: string };
 
     // Multer puts uploaded files in req.files (fields)
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const avatarFile = files?.["avatar"]?.[0];
     const coverFile  = files?.["cover"]?.[0];
 
-    if (!username) {
+    const current = await pool.query(
+      "SELECT username, bio, profile_image, cover_image FROM users WHERE id = $1",
+      [userId]
+    );
+    if (current.rows.length === 0) {
+      res.status(404).json({ success: false, message: "User not found." });
+      return;
+    }
+    const currentProfile = current.rows[0];
+    const username = requestedUsername?.trim() || currentProfile.username;
+
+    if (requestedUsername !== undefined && !requestedUsername.trim()) {
       res.status(400).json({ success: false, message: "Username is required." });
       return;
     }
 
-    const existingUser = await pool.query(
-      "SELECT id FROM users WHERE username = $1 AND id != $2",
-      [username, userId]
-    );
-    if (existingUser.rows.length > 0) {
-      res.status(409).json({ success: false, message: "Username is already taken." });
-      return;
+    if (username !== currentProfile.username) {
+      const existingUser = await pool.query(
+        "SELECT id FROM users WHERE LOWER(username) = LOWER($1) AND id <> $2",
+        [username, userId]
+      );
+      if (existingUser.rows.length > 0) {
+        res.status(409).json({ success: false, message: "Username is already taken." });
+        return;
+      }
     }
-
-    // Fetch current values to keep unchanged fields
-    const current = await pool.query("SELECT profile_image, cover_image FROM users WHERE id = $1", [userId]);
-    const currentProfile = current.rows[0];
 
     const profileImage = avatarFile ? `/uploads/${avatarFile.filename}` : currentProfile?.profile_image;
     const coverImage   = coverFile  ? `/uploads/${coverFile.filename}`  : currentProfile?.cover_image;
@@ -156,7 +165,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
        SET username = $1, bio = $2, profile_image = $3, cover_image = $4, updated_at = CURRENT_TIMESTAMP
        WHERE id = $5
        RETURNING id, username, email, bio, profile_image, cover_image, is_verified, created_at, updated_at`,
-      [username, bio || null, profileImage || null, coverImage || null, userId]
+      [username, bio === undefined ? currentProfile.bio : bio.trim() || null, profileImage || null, coverImage || null, userId]
     );
 
     res.status(200).json({

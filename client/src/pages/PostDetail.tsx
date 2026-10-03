@@ -47,7 +47,7 @@ const PostDetail = () => {
         </NavLink>
       </div>
 
-      <PostCard post={post} onDelete={async pid => { try { await postService.deletePost(pid); navigate(-1); } catch (e) { console.error(e); } }} showComments={true} />
+      <PostCard post={post} onDelete={async pid => { try { await postService.deletePost(pid); navigate(-1); } catch (e) { console.error(e); } }} showComments={true} showFullContent />
     </div>
   );
 };

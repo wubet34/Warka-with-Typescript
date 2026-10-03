@@ -26,7 +26,7 @@ const CreateCommunityModal = ({ onClose }: Props) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor:"rgba(0,0,0,0.6)" }}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ backgroundColor:"rgba(0,0,0,0.6)" }}>
       <div className="rounded-2xl shadow-2xl w-full max-w-md" style={{ backgroundColor:"var(--surface)", border:"1px solid var(--border)" }}>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom:"1px solid var(--border)" }}>
           <div className="flex items-center gap-2">

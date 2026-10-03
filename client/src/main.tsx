@@ -6,16 +6,19 @@ import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext.tsx'
 import { SocketProvider } from './context/SocketContext.tsx'
 import { ThemeProvider } from './context/ThemeContext.tsx'
+import { SettingsProvider } from './context/SettingsContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <ThemeProvider>
-        <AuthProvider>
-          <SocketProvider>
-            <App />
-          </SocketProvider>
-        </AuthProvider>
+        <SettingsProvider>
+          <AuthProvider>
+            <SocketProvider>
+              <App />
+            </SocketProvider>
+          </AuthProvider>
+        </SettingsProvider>
       </ThemeProvider>
     </BrowserRouter>
   </StrictMode>,

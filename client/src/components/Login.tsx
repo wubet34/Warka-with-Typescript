@@ -1,10 +1,11 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { LogIn, UserPlus, X, Eye, EyeOff, Mail, Lock, User } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-interface Props { onClose: () => void; defaultMode?: "login" | "register"; }
+interface Props { onClose: () => void; defaultMode?: "login" | "register"; message?: string; }
 
-const Login = ({ onClose, defaultMode = "login" }: Props) => {
+const Login = ({ onClose, defaultMode = "login", message }: Props) => {
   const { login, register } = useAuth();
   const [mode, setMode]               = useState<"login"|"register">(defaultMode);
   const [form, setForm]               = useState({ username:"", email:"", password:"" });
@@ -30,7 +31,7 @@ const Login = ({ onClose, defaultMode = "login" }: Props) => {
   const s = { backgroundColor:"var(--surface)", border:"1px solid var(--border)" };
   const inp = "w-full pl-10 pr-4 py-2.5 rounded-xl outline-none text-sm transition-all";
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor:"rgba(0,0,0,0.6)" }}>
       <div className="rounded-2xl shadow-2xl w-full max-w-md relative" style={s}>
         <button onClick={onClose} className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--muted)" }}>
@@ -43,7 +44,7 @@ const Login = ({ onClose, defaultMode = "login" }: Props) => {
             {mode === "login" ? "Welcome back" : "Create an account"}
           </h2>
           <p className="text-sm mt-1" style={{ color:"var(--muted)" }}>
-            {mode === "login" ? "Sign in to continue" : "Join the Warka community"}
+            {message || (mode === "login" ? "Sign in to continue" : "Join the Warka community")}
           </p>
         </div>
 
@@ -128,7 +129,8 @@ const Login = ({ onClose, defaultMode = "login" }: Props) => {
           </p>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 export default Login;

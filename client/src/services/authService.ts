@@ -35,14 +35,14 @@ export const authService = {
   },
 
   async updateProfile(payload: {
-    username: string;
+    username?: string;
     bio?: string;
     avatar?: File;
     cover?: File;
   }): Promise<User> {
     const form = new FormData();
-    form.append("username", payload.username);
-    if (payload.bio)    form.append("bio", payload.bio);
+    if (payload.username !== undefined) form.append("username", payload.username);
+    if (payload.bio !== undefined) form.append("bio", payload.bio);
     if (payload.avatar) form.append("avatar", payload.avatar);
     if (payload.cover)  form.append("cover", payload.cover);
 

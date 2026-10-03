@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { ChevronUp, ChevronDown, MessageCircle, Share, MoreHorizontal } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ChevronUp, ChevronDown, MessageCircle, Share2, MoreHorizontal, X, ZoomIn, ZoomOut, RotateCcw, Pencil, Trash2 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
+import Login from "../Login";
 import type { Post } from "../../types/index";
 import { voteService } from "../../services/voteService";
 import { useAuth } from "../../context/AuthContext";
@@ -8,14 +10,16 @@ import { useSocket } from "../../context/SocketContext";
 import { formatDate } from "../../utils/formatDate";
 import { imgUrl } from "../../utils/imageUrl";
 import CommentSection from "./CommentSection";
+import { postService } from "../../services/postService";
 
 interface Props {
   post: Post;
   onDelete?: (id: number) => void;
   showComments?: boolean;
+  showFullContent?: boolean;
 }
 
-const PostCard = ({ post, onDelete, showComments: initOpen = false }: Props) => {
+const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullContent = false }: Props) => {
   const { user, isAuthenticated } = useAuth();
   const { socket } = useSocket();
   const navigate = useNavigate();
@@ -23,6 +27,99 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false }: Props) => 
   const [userVote, setUserVote]       = useState<1 | -1 | 0>(0);
   const [commentsOpen, setCommentsOpen] = useState(initOpen);
   const [commentCount, setCommentCount] = useState(Number(post.comment_count));
+  const [imageOpen, setImageOpen] = useState(false);
+  const [imageZoom, setImageZoom] = useState(1);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [shareError, setShareError] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState(post.title);
+  const [editContent, setEditContent] = useState(post.content ?? "");
+  const [displayTitle, setDisplayTitle] = useState(post.title);
+  const [displayContent, setDisplayContent] = useState(post.content ?? "");
+  const [editError, setEditError] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [loginMessage, setLoginMessage] = useState("");
+
+  useEffect(() => {
+    if (!imageOpen && !shareOpen && !deleteOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setImageOpen(false);
+      if (event.key === "Escape") setShareOpen(false);
+      if (event.key === "Escape" && !deleteBusy) setDeleteOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [imageOpen, shareOpen, deleteOpen, deleteBusy]);
+
+  const openImage = () => {
+    setImageZoom(1);
+    setImageOpen(true);
+  };
+
+  const handleShare = () => {
+    setMenuOpen(false);
+    setShareError("");
+    setShareOpen(true);
+  };
+
+  const confirmDelete = () => {
+    setMenuOpen(false);
+    setDeleteError("");
+    setDeleteOpen(true);
+  };
+
+  const postUrl = `${window.location.origin}/post/${post.id}`;
+  const encodedUrl = encodeURIComponent(postUrl);
+  const encodedTitle = encodeURIComponent(displayTitle);
+  const socialLinks = [
+    { name: "WhatsApp", href: `https://wa.me/?text=${encodedTitle}%20${encodedUrl}` },
+    { name: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}` },
+    { name: "X", href: `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}` },
+    { name: "Telegram", href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}` },
+  ];
+
+  const handleDelete = async () => {
+    setDeleteBusy(true);
+    setDeleteError("");
+    try {
+      await onDelete?.(post.id);
+      setDeleteOpen(false);
+    } catch {
+      setDeleteError("Couldn't delete this post. Please try again.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
+
+  const handleNativeShare = async () => {
+    try {
+      await navigator.share({ title: displayTitle, url: postUrl });
+      setShareOpen(false);
+    } catch (error) {
+      if ((error as DOMException).name !== "AbortError") setShareError("Couldn't open the share sheet.");
+    }
+  };
+
+  const handleEditSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editTitle.trim()) { setEditError("Title is required."); return; }
+    setSavingEdit(true);
+    setEditError("");
+    try {
+      await postService.updatePost(post.id, { title: editTitle.trim(), content: editContent.trim() });
+      setDisplayTitle(editTitle.trim());
+      setDisplayContent(editContent.trim());
+      setEditOpen(false);
+    } catch (error) {
+      setEditError((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Couldn't update this post.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   useEffect(() => {
     const h = ({ postId, voteScore: s }: { postId: number; voteScore: number }) => {
@@ -33,7 +130,10 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false }: Props) => 
   }, [post.id, socket]);
 
   const handleVote = async (v: 1 | -1) => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setLoginMessage("Sign in or create an account to vote on posts.");
+      return;
+    }
     try {
       await voteService.vote(post.id, v);
       if (userVote === v) { setVoteScore(s => s - v); setUserVote(0); }
@@ -45,8 +145,9 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false }: Props) => 
   const downActive = userVote === -1;
 
   return (
-    <div className="rounded-2xl overflow-hidden transition-colors hover:border-[var(--accent)]/30"
+    <div className="rounded-2xl overflow-hidden transition-colors hover:border-(--accent)/30"
       style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)" }}>
+      {loginMessage && <Login onClose={() => setLoginMessage("")} message={loginMessage} />}
       <div className="flex">
         {/* Vote column */}
         <div className="flex flex-col items-center px-2 sm:px-3 py-4 gap-1 shrink-0"
@@ -70,40 +171,66 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false }: Props) => 
           {/* Meta */}
           <div className="flex items-start justify-between gap-2 mb-1.5">
             <div className="flex items-center gap-1.5 flex-wrap text-xs" style={{ color: "var(--muted)" }}>
-              <NavLink to={`/w/${post.community_slug}`} className="font-semibold hover:underline" style={{ color: "var(--text)" }}>
-                w/{post.community_name}
-              </NavLink>
+              {post.community_slug
+                ? <NavLink to={`/w/${post.community_slug}`} className="font-semibold hover:underline" style={{ color: "var(--text)" }}>w/{post.community_name}</NavLink>
+                : <span className="font-semibold" style={{ color: "var(--text)" }}>w/{post.community_name}</span>}
               <span>•</span>
               <span>by</span>
-              <NavLink to={`/user/${post.user_id}`} className="hover:underline" style={{ color: "var(--muted)" }}>
-                u/{post.username}
-              </NavLink>
+              {post.user_id
+                ? <NavLink to={`/user/${post.user_id}`} className="hover:underline" style={{ color: "var(--muted)" }}>u/{post.username}</NavLink>
+                : <span>u/{post.username}</span>}
               <span>•</span>
               <span>{formatDate(post.created_at)}</span>
             </div>
             {user?.id === post.user_id && onDelete && (
-              <button onClick={() => onDelete(post.id)} className="shrink-0 hover:text-red-500 transition-colors"
-                style={{ color: "var(--border)" }}>
-                <MoreHorizontal size={16} />
-              </button>
+              <div className="relative shrink-0">
+                <button type="button" onClick={() => setMenuOpen(open => !open)} aria-label="Post options" aria-expanded={menuOpen}
+                  className="rounded-lg p-1 hover:bg-[var(--surface2)] transition-colors" style={{ color: "var(--muted)" }}>
+                  <MoreHorizontal size={18} />
+                </button>
+                {menuOpen && (
+                  <div className="absolute right-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-xl py-1 shadow-xl"
+                    style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)" }}>
+                    <button type="button" onClick={() => { setEditTitle(displayTitle); setEditContent(displayContent); setEditError(""); setEditOpen(true); setMenuOpen(false); }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--surface2)]" style={{ color: "var(--text)" }}>
+                      <Pencil size={15} /> Edit
+                    </button>
+                    <button type="button" onClick={handleShare}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--surface2)]" style={{ color: "var(--text)" }}>
+                      <Share2 size={15} /> Share
+                    </button>
+                    <button type="button" onClick={confirmDelete}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-500 hover:bg-[var(--surface2)]">
+                      <Trash2 size={15} /> Delete
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
           {/* Title */}
           <h3 onClick={() => navigate(`/post/${post.id}`)}
-            className="text-sm font-semibold mb-1.5 leading-snug cursor-pointer hover:text-[var(--accent)] transition-colors"
+            className="text-sm font-semibold mb-1.5 leading-snug cursor-pointer hover:text-(--accent) transition-colors"
             style={{ color: "var(--text)" }}>
-            {post.title}
+            {displayTitle}
           </h3>
 
-          {post.content && (
-            <p className="text-sm line-clamp-3 mb-3" style={{ color: "var(--muted)" }}>{post.content}</p>
+          {displayContent && (
+            <p className={`text-sm mb-3${showFullContent ? " whitespace-pre-wrap wrap-break-word" : " line-clamp-3"}`} style={{ color: "var(--muted)" }}>{displayContent}</p>
           )}
 
           {post.image && (
-            <div className="mb-3 rounded-xl overflow-hidden cursor-pointer" onClick={() => navigate(`/post/${post.id}`)}>
-              <img src={imgUrl(post.image)} alt="" className="w-full object-cover max-h-72" />
-            </div>
+            <button type="button" onClick={openImage} aria-label={`Open image for ${displayTitle}`}
+              className="group relative mb-3 block w-full overflow-hidden rounded-xl border text-left"
+              style={{ backgroundColor: "var(--surface2)", borderColor: "var(--border)" }}>
+              <img src={imgUrl(post.image)} alt={displayTitle}
+                className="mx-auto max-h-[min(70vh,34rem)] w-full object-contain transition-transform duration-200 group-hover:scale-[1.01]" />
+              <span className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold opacity-0 shadow transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                style={{ color: "var(--surface)", backgroundColor: "var(--text)" }}>
+                <ZoomIn size={14} /> View image
+              </span>
+            </button>
           )}
 
           {post.link && (
@@ -128,9 +255,9 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false }: Props) => 
               style={{ color: "var(--muted)" }}>
               <MessageCircle size={15} /> {commentCount} Comments
             </button>
-            <button className="flex items-center gap-1.5 text-xs transition-colors hover:text-[var(--accent)]"
+            <button onClick={handleShare} className="flex items-center gap-1.5 text-xs transition-colors hover:text-[var(--accent)]"
               style={{ color: "var(--muted)" }}>
-              <Share size={15} /> Share
+              <Share2 size={15} /> Share
             </button>
           </div>
         </div>
@@ -138,6 +265,118 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false }: Props) => 
 
       {commentsOpen && (
         <CommentSection postId={post.id} initialCount={commentCount} onCountChange={setCommentCount} />
+      )}
+
+      {shareOpen && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 backdrop-blur-[2px]"
+          role="presentation" onClick={() => setShareOpen(false)}>
+          <section role="dialog" aria-modal="true" aria-labelledby={`share-title-${post.id}`}
+            className="w-full max-w-md rounded-2xl p-5 shadow-2xl"
+            style={{ backgroundColor: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)" }}
+            onClick={event => event.stopPropagation()}>
+            <header className="mb-4 flex items-center justify-between">
+              <h2 id={`share-title-${post.id}`} className="text-lg font-bold">Share post</h2>
+              <button type="button" onClick={() => setShareOpen(false)} aria-label="Close share dialog"
+                className="rounded-full p-2 hover:bg-[var(--surface2)]"><X size={18} /></button>
+            </header>
+            <p className="mb-4 truncate text-sm" style={{ color: "var(--muted)" }}>{displayTitle}</p>
+            <div className="grid grid-cols-2 gap-2">
+              {socialLinks.map(({ name, href }) => (
+                <button key={name} type="button" onClick={() => {
+                  window.open(href, "_blank", "noopener,noreferrer");
+                  setShareOpen(false);
+                }}
+                  className="rounded-xl border px-4 py-3 text-center text-sm font-semibold transition-colors hover:bg-[var(--surface2)]"
+                  style={{ color: "var(--text)", borderColor: "var(--border)" }}>{name}</button>
+              ))}
+              {navigator.share && <button type="button" onClick={handleNativeShare}
+                className="col-span-2 rounded-xl px-4 py-3 text-sm font-semibold transition-opacity hover:opacity-80"
+                style={{ color: "var(--surface)", backgroundColor: "var(--text)" }}>More apps</button>}
+            </div>
+            {shareError && <p className="mt-3 text-sm text-red-500">{shareError}</p>}
+          </section>
+        </div>,
+        document.body
+      )}
+
+      {deleteOpen && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 backdrop-blur-[2px]"
+          role="presentation" onClick={() => { if (!deleteBusy) setDeleteOpen(false); }}>
+          <section role="alertdialog" aria-modal="true" aria-labelledby={`delete-title-${post.id}`}
+            className="w-full max-w-sm rounded-2xl p-5 shadow-2xl"
+            style={{ backgroundColor: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)" }}
+            onClick={event => event.stopPropagation()}>
+            <h2 id={`delete-title-${post.id}`} className="text-lg font-bold">Delete post?</h2>
+            <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>This action cannot be undone.</p>
+            {deleteError && <p className="mt-3 text-sm text-red-500">{deleteError}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" disabled={deleteBusy} onClick={() => setDeleteOpen(false)}
+                className="rounded-full border px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                style={{ color: "var(--text)", borderColor: "var(--border)" }}>Cancel</button>
+              <button type="button" disabled={deleteBusy} onClick={handleDelete}
+                className="rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                style={{ color: "var(--surface)", backgroundColor: "var(--text)" }}>{deleteBusy ? "Deleting…" : "Delete"}</button>
+            </div>
+          </section>
+        </div>,
+        document.body
+      )}
+
+      {imageOpen && post.image && createPortal(
+        <div
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 p-3 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image viewer"
+          onClick={() => setImageOpen(false)}
+        >
+          <div className="mb-3 flex w-full max-w-5xl items-center justify-between" onClick={event => event.stopPropagation()}>
+            <p className="min-w-0 truncate pr-3 text-sm font-medium text-white">{displayTitle}</p>
+            <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={() => setImageZoom(z => Math.max(0.5, z - 0.25))} aria-label="Zoom out"
+              className="rounded-lg bg-white/10 p-2 text-white hover:bg-white/20"><ZoomOut size={20} /></button>
+            <span className="min-w-12 text-center text-sm text-white">{Math.round(imageZoom * 100)}%</span>
+            <button type="button" onClick={() => setImageZoom(z => Math.min(3, z + 0.25))} aria-label="Zoom in"
+              className="rounded-lg bg-white/10 p-2 text-white hover:bg-white/20"><ZoomIn size={20} /></button>
+            <button type="button" onClick={() => setImageZoom(1)} aria-label="Reset zoom"
+              className="rounded-lg bg-white/10 p-2 text-white hover:bg-white/20"><RotateCcw size={20} /></button>
+            <button type="button" onClick={() => setImageOpen(false)} aria-label="Close image viewer"
+              className="rounded-lg bg-white/10 p-2 text-white hover:bg-white/20"><X size={20} /></button>
+            </div>
+          </div>
+          <div className="flex min-h-0 w-full max-w-5xl flex-1 items-center justify-center overflow-auto rounded-xl bg-black" onClick={event => event.stopPropagation()}>
+            <img
+              src={imgUrl(post.image)}
+              alt={post.title}
+              className="max-h-full max-w-full object-contain transition-transform duration-150"
+              style={{ transform: `scale(${imageZoom})` }}
+            />
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {editOpen && createPortal(
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-4" onClick={() => setEditOpen(false)}>
+          <form onSubmit={handleEditSubmit} onClick={event => event.stopPropagation()}
+            className="w-full max-w-lg space-y-3 rounded-2xl p-5 shadow-2xl"
+            style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)" }}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold" style={{ color: "var(--text)" }}>Edit post</h2>
+              <button type="button" onClick={() => setEditOpen(false)} aria-label="Close edit form" style={{ color: "var(--muted)" }}><X size={18} /></button>
+            </div>
+            <input value={editTitle} onChange={event => setEditTitle(event.target.value)} maxLength={300} aria-label="Post title"
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none" style={{ color: "var(--text)", backgroundColor: "var(--input-bg)", border: "1px solid var(--border)" }} />
+            <textarea value={editContent} onChange={event => setEditContent(event.target.value)} rows={6} aria-label="Post caption or text"
+              className="w-full resize-y rounded-xl px-3 py-2 text-sm outline-none" style={{ color: "var(--text)", backgroundColor: "var(--input-bg)", border: "1px solid var(--border)" }} />
+            {editError && <p className="text-sm text-red-500">{editError}</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setEditOpen(false)} className="rounded-full px-4 py-2 text-sm" style={{ color: "var(--muted)" }}>Cancel</button>
+              <button type="submit" disabled={savingEdit} className="rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: "var(--accent)" }}>{savingEdit ? "Saving…" : "Save changes"}</button>
+            </div>
+          </form>
+        </div>,
+        document.body
       )}
     </div>
   );

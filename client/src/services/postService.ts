@@ -32,7 +32,7 @@ export const postService = {
     const form = new FormData();
     form.append("title", payload.title);
     form.append("community_id", String(payload.community_id));
-    if (payload.content) form.append("content", payload.content);
+    if (payload.content !== undefined) form.append("content", payload.content);
     if (payload.image)   form.append("image", payload.image);
     if (payload.link)    form.append("link", payload.link);
 
@@ -48,7 +48,7 @@ export const postService = {
   ): Promise<Post> {
     const form = new FormData();
     form.append("title", payload.title);
-    if (payload.content) form.append("content", payload.content);
+    if (payload.content !== undefined) form.append("content", payload.content);
     if (payload.image)   form.append("image", payload.image);
     if (payload.link)    form.append("link", payload.link);
 

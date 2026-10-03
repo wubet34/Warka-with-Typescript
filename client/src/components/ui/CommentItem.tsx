@@ -4,6 +4,7 @@ import { CornerDownRight, Trash2, Send, ChevronDown } from "lucide-react";
 import type { Comment } from "../../types/index";
 import { commentService } from "../../services/commentService";
 import { useAuth } from "../../context/AuthContext";
+import Login from "../Login";
 import { formatDate } from "../../utils/formatDate";
 
 export interface CommentNode extends Comment { children: CommentNode[]; }
@@ -36,9 +37,14 @@ const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded }: Props) 
   const [showReply, setShowReply]   = useState(false);
   const [replyText, setReplyText]   = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [loginMessage, setLoginMessage] = useState("");
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAuthenticated) {
+      setLoginMessage("Sign in or create an account to reply.");
+      return;
+    }
     if (!replyText.trim()) return;
     setSubmitting(true);
     try {
@@ -53,6 +59,7 @@ const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded }: Props) 
 
   return (
     <div className={depth > 0 ? "ml-4 pl-3" : ""} style={depth > 0 ? { borderLeft: `2px solid ${borderColor}` } : {}}>
+      {loginMessage && <Login onClose={() => setLoginMessage("")} message={loginMessage} />}
       <div className="flex items-start gap-2 pt-2">
         <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 mt-0.5"
           style={{ backgroundColor: "var(--accent)" }}>
@@ -78,12 +85,12 @@ const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded }: Props) 
 
           {!collapsed && (
             <div className="flex items-center gap-3 mt-1">
-              {isAuthenticated && (
-                <button onClick={() => setShowReply(!showReply)}
-                  className="flex items-center gap-1 text-xs hover:text-[var(--accent)] transition-colors" style={{ color: "var(--muted)" }}>
-                  <CornerDownRight size={11} /> Reply
-                </button>
-              )}
+              <button onClick={() => isAuthenticated
+                ? setShowReply(!showReply)
+                : setLoginMessage("Sign in or create an account to reply.")}
+                className="flex items-center gap-1 text-xs hover:text-[var(--accent)] transition-colors" style={{ color: "var(--muted)" }}>
+                <CornerDownRight size={11} /> Reply
+              </button>
               {user?.id === comment.user_id && (
                 <button onClick={() => onDelete(comment.id)}
                   className="flex items-center gap-1 text-xs hover:text-red-500 transition-colors" style={{ color: "var(--border)" }}>
@@ -93,7 +100,7 @@ const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded }: Props) 
             </div>
           )}
 
-          {showReply && !collapsed && (
+          {showReply && !collapsed && isAuthenticated && (
             <form onSubmit={handleReply} className="mt-2 flex items-center gap-2">
               <div className="flex-1 flex items-center rounded-full px-3 py-1.5 gap-1" style={{ backgroundColor: "var(--input-bg)" }}>
                 <input autoFocus type="text" placeholder={`Reply to ${comment.username}...`}

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { notificationService } from "../../services/notificationService";
 import { useSocket } from "../../context/SocketContext";
 import { useAuth } from "../../context/AuthContext";
+import { useSettings } from "../../context/SettingsContext";
 import type { Notification } from "../../types/notification";
 import { formatDate } from "../../utils/formatDate";
 import { imgUrl } from "../../utils/imageUrl";
@@ -30,6 +31,7 @@ const typeColor = (type: Notification["type"]) => {
 
 const NotificationDropdown = () => {
   const { isAuthenticated, user } = useAuth();
+  const { notificationsEnabled } = useSettings();
   const { socket } = useSocket();
   const navigate = useNavigate();
 
@@ -50,7 +52,7 @@ const NotificationDropdown = () => {
 
   // Join personal socket room + listen for live notifications
   useEffect(() => {
-    if (!isAuthenticated || !user) return;
+    if (!isAuthenticated || !user || !notificationsEnabled) return;
     socket.emit("join_user", user.id);
 
     const h = (n: Notification) => {
@@ -63,7 +65,7 @@ const NotificationDropdown = () => {
       socket.emit("leave_user", user.id);
       socket.off("notification", h);
     };
-  }, [isAuthenticated, user, socket]);
+  }, [isAuthenticated, user, socket, notificationsEnabled]);
 
   // Load on first open
   const handleOpen = async () => {
@@ -103,7 +105,7 @@ const NotificationDropdown = () => {
     if (n && !n.is_read) setUnread(c => Math.max(0, c - 1));
   };
 
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated || !notificationsEnabled) return null;
 
   return (
     <div className="relative" ref={dropRef}>

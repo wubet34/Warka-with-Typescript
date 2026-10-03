@@ -1,9 +1,18 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Monocraft";
+  src: url("https://cdn.jsdelivr.net/gh/IdreesInc/Monocraft@v4.2.1/dist/Monocraft-ttf/Monocraft.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 /* ── Dark mode via .dark class on <html> ── */
 @custom-variant dark (&:where(.dark, .dark *));
 
-* { font-family: "Outfit", sans-serif; }
+* { font-family: var(--app-font-family, "Outfit", sans-serif); }
+html { font-size: var(--app-font-size, 16px); }
 
 /* ── Base surfaces (GitHub dark palette) ── */
 :root {
@@ -27,6 +36,28 @@
   --accent:   #3fb950;
   --accent2:  #2ea043;
   --input-bg: #21262d;
+}
+:root[data-theme="catppuccin"] {
+  --bg:       #1e1e2e;
+  --surface:  #181825;
+  --surface2: #313244;
+  --border:   #45475a;
+  --text:     #cdd6f4;
+  --muted:    #a6adc8;
+  --accent:   #cba6f7;
+  --accent2:  #b4befe;
+  --input-bg: #313244;
+}
+:root[data-theme="kanagawa"] {
+  --bg:       #1f1f28;
+  --surface:  #2a2a37;
+  --surface2: #363646;
+  --border:   #54546d;
+  --text:     #dcd7ba;
+  --muted:    #c8c093;
+  --accent:   #98bb6c;
+  --accent2:  #7e9cd8;
+  --input-bg: #363646;
 }
 
 html, body {

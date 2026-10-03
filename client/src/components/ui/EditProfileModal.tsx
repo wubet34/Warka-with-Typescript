@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { X, Camera, UploadCloud } from "lucide-react";
 import type { User } from "../../types/index";
 import { authService } from "../../services/authService";
@@ -20,15 +20,40 @@ const EditProfileModal = ({ user, onClose, onSaved }: Props) => {
   const avatarRef = useRef<HTMLInputElement>(null);
   const coverRef  = useRef<HTMLInputElement>(null);
 
-  const pickAvatar = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (!f) return; setAvatarFile(f); setAvatarPrev(URL.createObjectURL(f)); };
-  const pickCover  = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (!f) return; setCoverFile(f);  setCoverPrev(URL.createObjectURL(f)); };
+  useEffect(() => () => { if (avatarPrev) URL.revokeObjectURL(avatarPrev); }, [avatarPrev]);
+  useEffect(() => () => { if (coverPrev) URL.revokeObjectURL(coverPrev); }, [coverPrev]);
+
+  const pickImage = (e: React.ChangeEvent<HTMLInputElement>, kind: "avatar" | "cover") => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const supported = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (!supported.includes(file.type)) {
+      setError("Choose a JPG, PNG, GIF, or WEBP image.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Images must be 5 MB or smaller.");
+      e.target.value = "";
+      return;
+    }
+    setError("");
+    const preview = URL.createObjectURL(file);
+    if (kind === "avatar") { setAvatarFile(file); setAvatarPrev(preview); }
+    else { setCoverFile(file); setCoverPrev(preview); }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) { setError("Username is required."); return; }
     setLoading(true); setError("");
     try {
-      const updated = await authService.updateProfile({ username: username.trim(), bio: bio.trim() || undefined, avatar: avatarFile ?? undefined, cover: coverFile ?? undefined });
+      const updated = await authService.updateProfile({
+        username: username.trim() === user.username ? undefined : username.trim(),
+        bio: bio.trim(),
+        avatar: avatarFile ?? undefined,
+        cover: coverFile ?? undefined,
+      });
       updateUser(updated); onSaved(updated); onClose();
     } catch (err: unknown) {
       setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to update profile.");
@@ -51,18 +76,20 @@ const EditProfileModal = ({ user, onClose, onSaved }: Props) => {
 
         <form onSubmit={handleSubmit}>
           {/* Cover */}
-          <div className="relative h-32 cursor-pointer group" onClick={() => coverRef.current?.click()}>
+          <button type="button" aria-label="Choose profile cover image" className="group relative block h-32 w-full cursor-pointer text-left"
+            onClick={() => coverRef.current?.click()}>
             {coverSrc ? <img src={coverSrc} alt="cover" className="w-full h-full object-cover" />
               : <div className="w-full h-full bg-gradient-to-r from-[#1A4329] to-green-500" />}
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
               <span className="flex items-center gap-2 text-white text-sm font-medium"><UploadCloud size={18}/> Change Cover</span>
             </div>
-            <input ref={coverRef} type="file" accept="image/*" onChange={pickCover} className="hidden" />
-          </div>
+          </button>
+          <input ref={coverRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={e => pickImage(e, "cover")} className="hidden" />
 
           {/* Avatar */}
-          <div className="px-5 -mt-8 mb-2">
-            <div className="relative w-16 h-16 cursor-pointer group" onClick={() => avatarRef.current?.click()}>
+          <div className="-mt-8 mb-3 flex items-end gap-3 px-5">
+            <button type="button" aria-label="Choose profile avatar" className="group relative h-16 w-16 shrink-0"
+              onClick={() => avatarRef.current?.click()}>
               {avatarSrc
                 ? <img src={avatarSrc} className="w-16 h-16 rounded-full border-4 object-cover shadow" style={{ borderColor:"var(--surface)" }} alt="" />
                 : <div className="w-16 h-16 rounded-full border-4 flex items-center justify-center text-white text-2xl font-bold shadow"
@@ -70,8 +97,14 @@ const EditProfileModal = ({ user, onClose, onSaved }: Props) => {
               <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
                 <Camera size={16} className="text-white" />
               </div>
-              <input ref={avatarRef} type="file" accept="image/*" onChange={pickAvatar} className="hidden" />
+            </button>
+            <div className="pb-1">
+              <p className="text-sm font-medium" style={{ color:"var(--text)" }}>Profile avatar</p>
+              <button type="button" onClick={() => avatarRef.current?.click()} className="text-xs font-semibold hover:underline" style={{ color:"var(--accent)" }}>
+                Choose image
+              </button>
             </div>
+            <input ref={avatarRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={e => pickImage(e, "avatar")} className="hidden" />
           </div>
 
           <div className="px-5 pb-5 space-y-3">
@@ -86,6 +119,7 @@ const EditProfileModal = ({ user, onClose, onSaved }: Props) => {
                 className="w-full px-4 py-2.5 rounded-xl outline-none text-sm resize-none" style={{ backgroundColor:"var(--input-bg)", color:"var(--text)", border:"1px solid var(--border)" }} />
               <p className="text-xs text-right" style={{ color:"var(--muted)" }}>{bio.length}/200</p>
             </div>
+            <p className="text-xs" style={{ color:"var(--muted)" }}>Avatar and cover: JPG, PNG, GIF, or WEBP, up to 5 MB each.</p>
             {error && <p className="text-xs px-3 py-2 rounded-xl" style={{ backgroundColor:"rgba(248,81,73,0.1)", color:"#f85149" }}>{error}</p>}
             <div className="flex gap-2 pt-1">
               <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-full text-sm font-semibold hover:bg-[var(--surface2)] transition-all"

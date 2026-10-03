@@ -3,6 +3,7 @@ import { Send, Loader2 } from "lucide-react";
 import type { Comment } from "../../types/index";
 import { commentService } from "../../services/commentService";
 import { useAuth } from "../../context/AuthContext";
+import Login from "../Login";
 import { useSocket } from "../../context/SocketContext";
 import CommentItem, { buildTree } from "./CommentItem";
 
@@ -16,6 +17,7 @@ const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
   const [loading, setLoading]   = useState(false);
   const [text, setText]         = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [loginMessage, setLoginMessage] = useState("");
   const [, setCount]       = useState(initialCount);
 
   useEffect(() => {
@@ -40,7 +42,11 @@ const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim() || !isAuthenticated) return;
+    if (!isAuthenticated) {
+      setLoginMessage("Sign in or create an account to comment.");
+      return;
+    }
+    if (!text.trim()) return;
     setSubmitting(true);
     try {
       const c = await commentService.createComment({ content: text.trim(), post_id: postId });
@@ -70,6 +76,7 @@ const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
 
   return (
     <div style={{ borderTop: "1px solid var(--border)" }}>
+      {loginMessage && <Login onClose={() => setLoginMessage("")} message={loginMessage} />}
       {isAuthenticated && (
         <div className="px-3 sm:px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
           <form onSubmit={handleSubmit} className="flex items-center gap-2">
@@ -85,6 +92,13 @@ const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+      {!isAuthenticated && (
+        <div className="px-3 py-3 sm:px-4" style={{ borderBottom: "1px solid var(--border)" }}>
+          <button type="button" onClick={() => setLoginMessage("Sign in or create an account to comment.")}
+            className="w-full rounded-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-[var(--surface2)]"
+            style={{ backgroundColor: "var(--input-bg)", color: "var(--muted)" }}>Log in to comment</button>
         </div>
       )}
 

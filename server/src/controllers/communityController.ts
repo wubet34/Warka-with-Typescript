@@ -206,9 +206,9 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
     const { id } = req.params;
 
     const result = await pool.query(
-      `SELECT p.id, p.title, p.content, p.image, p.vote_score, p.created_at,
+      `SELECT p.id, p.title, p.content, p.image, p.link, p.vote_score, p.created_at,
               u.id AS user_id, u.username,
-              c.id AS community_id, c.name AS community_name, c.slug,
+              c.id AS community_id, c.name AS community_name, c.slug AS community_slug,
               COUNT(DISTINCT cm.id) AS comment_count
        FROM posts p
        JOIN users u ON p.user_id = u.id

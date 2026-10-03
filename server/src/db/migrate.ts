@@ -6,10 +6,25 @@ import { Pool } from "pg";
 import dotenv from "dotenv";
 dotenv.config();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = new Pool(
+  process.env.DATABASE_URL
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false },
+      }
+    : {
+        host: process.env.DB_HOST,
+        port: Number(process.env.DB_PORT) || 5432,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_NAME,
+        ssl:
+          process.env.DB_HOST &&
+          !process.env.DB_HOST.includes("localhost")
+            ? { rejectUnauthorized: false }
+            : undefined,
+      }
+);
 
 const sql = `
 -- Users
@@ -108,7 +123,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, crea
 `;
 
 async function migrate() {
-  console.log("Running migrations on NeonDB...");
+console.log("Running database migrations...");
   const client = await pool.connect();
   try {
     await client.query(sql);

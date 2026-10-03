@@ -67,7 +67,8 @@ const CreatePostForm = ({ onPostCreated, defaultCommunityId }: Props) => {
       const post = await postService.createPost({
         title: title.trim(),
         community_id: Number(communityId),
-        content:  tab === "text"  ? content.trim() : undefined,
+        // Keep captions and link descriptions; the content field is shared by all tabs.
+        content: content.trim() || undefined,
         image:    tab === "image" ? imageFile!      : undefined,
         link:     tab === "link"  ? link.trim()     : undefined,
       });

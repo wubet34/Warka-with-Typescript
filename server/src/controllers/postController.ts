@@ -49,7 +49,7 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    const result = await client.query(
+    const inserted = await client.query(
       `INSERT INTO posts (title, content, image, link, user_id, community_id)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [title, content || null, imagePath || null, link || null, user_id, community_id]
@@ -58,6 +58,18 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     await client.query(
       "UPDATE communities SET post_count = post_count + 1 WHERE id = $1",
       [community_id]
+    );
+
+    const result = await client.query(
+      `SELECT p.id, p.title, p.content, p.image, p.link, p.vote_score, p.created_at,
+              u.id AS user_id, u.username,
+              c.id AS community_id, c.name AS community_name, c.slug AS community_slug,
+              0 AS comment_count
+       FROM posts p
+       JOIN users u ON p.user_id = u.id
+       JOIN communities c ON p.community_id = c.id
+       WHERE p.id = $1`,
+      [inserted.rows[0].id]
     );
 
     await client.query("COMMIT");
@@ -82,9 +94,10 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
 export const getPosts = async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query(`
-      SELECT p.id, p.title, p.content, p.image, p.link, p.created_at,
-             u.id AS author_id, u.username,
-             c.id AS community_id, c.name AS community_name, c.slug
+      SELECT p.id, p.title, p.content, p.image, p.link, p.vote_score, p.created_at,
+             u.id AS user_id, u.username,
+             c.id AS community_id, c.name AS community_name, c.slug AS community_slug,
+             (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id) AS comment_count
       FROM posts p
       JOIN users u ON p.user_id = u.id
       JOIN communities c ON p.community_id = c.id
@@ -102,9 +115,10 @@ export const getPostById = async (req: Request, res: Response): Promise<void> =>
     const { id } = req.params;
 
     const result = await pool.query(
-      `SELECT p.id, p.title, p.content, p.image, p.created_at, p.updated_at,
-              u.id AS author_id, u.username,
-              c.id AS community_id, c.name AS community_name, c.slug
+      `SELECT p.id, p.title, p.content, p.image, p.link, p.vote_score,
+              p.created_at, p.updated_at, u.id AS user_id, u.username,
+              c.id AS community_id, c.name AS community_name, c.slug AS community_slug,
+              (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id) AS comment_count
        FROM posts p
        JOIN users u ON p.user_id = u.id
        JOIN communities c ON p.community_id = c.id
@@ -127,10 +141,10 @@ export const getPostById = async (req: Request, res: Response): Promise<void> =>
 export const updatePost = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { title, content, image } = req.body as {
+    const { title, content, link } = req.body as {
       title: string;
       content: string;
-      image?: string;
+      link?: string;
     };
 
     const result = await pool.query("SELECT * FROM posts WHERE id = $1", [id]);
@@ -150,11 +164,12 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    const imagePath = req.file ? `/uploads/${req.file.filename}` : post.image;
     const updated = await pool.query(
       `UPDATE posts
-       SET title = $1, content = $2, image = $3, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $4 RETURNING *`,
-      [title, content, image, id]
+       SET title = $1, content = $2, image = $3, link = $4, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5 RETURNING *`,
+      [title ?? post.title, content ?? post.content, imagePath, link ?? post.link, id]
     );
 
     res.status(200).json({

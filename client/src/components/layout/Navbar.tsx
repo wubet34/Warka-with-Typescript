@@ -8,6 +8,8 @@ import type { Post, User as UserType, Community } from "../../types/index";
 import Login from "../Login";
 import { imgUrl } from "../../utils/imageUrl";
 import NotificationDropdown from "../ui/NotificationDropdown";
+import CreateCommunityModal from "../ui/CreateCommunityModal";
+import SearchSuggestions from "../ui/SearchSuggestions";
 
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -15,40 +17,64 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen]       = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [showLogin, setShowLogin]     = useState(false);
+  const [showCreateCommunity, setShowCreateCommunity] = useState(false);
   const [loginMode, setLoginMode]     = useState<"login"|"register">("login");
   const [q, setQ]                     = useState("");
   const [liveResults, setLiveResults] = useState<{ posts: Post[]; users: UserType[]; communities: Community[] } | null>(null);
   const [searching, setSearching]     = useState(false);
   const [showDrop, setShowDrop]       = useState(false);
   const profileRef  = useRef<HTMLDivElement>(null);
-  const searchRef   = useRef<HTMLDivElement>(null);
+  const desktopSearchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
+  const searchRequestRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowDrop(false);
+      const inDesktopSearch = desktopSearchRef.current?.contains(e.target as Node);
+      const inMobileSearch = mobileSearchRef.current?.contains(e.target as Node);
+      if (!inDesktopSearch && !inMobileSearch) setShowDrop(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  // Live search debounced 300ms
+  // Debounce live search and ignore responses for older queries.
   const doSearch = useCallback(async (query: string) => {
-    if (!query.trim()) { setLiveResults(null); setShowDrop(false); return; }
+    const requestId = ++searchRequestRef.current;
     setSearching(true);
     try {
       const r = await searchService.searchAll(query.trim());
+      if (requestId !== searchRequestRef.current) return;
       setLiveResults(r);
       setShowDrop(true);
-    } catch (e) { console.error(e); }
-    finally { setSearching(false); }
+    } catch (e) {
+      if (requestId === searchRequestRef.current) {
+        console.error(e);
+        setLiveResults({ posts: [], users: [], communities: [] });
+        setShowDrop(true);
+      }
+    } finally {
+      if (requestId === searchRequestRef.current) setSearching(false);
+    }
   }, []);
 
   useEffect(() => {
+    const query = q.trim();
+    // Invalidate an in-flight response as soon as the input changes, before
+    // the next debounced request starts.
+    searchRequestRef.current += 1;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => doSearch(q), 300);
+    if (!query) {
+      setLiveResults(null);
+      setSearching(false);
+      setShowDrop(false);
+      return;
+    }
+    setShowDrop(true);
+    debounceRef.current = setTimeout(() => doSearch(query), 250);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [q, doSearch]);
 
@@ -83,6 +109,7 @@ const Navbar = () => {
   return (
     <>
       {showLogin && <Login onClose={() => setShowLogin(false)} defaultMode={loginMode} />}
+      {showCreateCommunity && <CreateCommunityModal onClose={() => setShowCreateCommunity(false)} />}
 
       {/* ── TOP BAR ── */}
       <header style={{ backgroundColor:"var(--surface)", borderBottom:"1px solid var(--border)" }} className="sticky top-0 z-40">
@@ -97,13 +124,18 @@ const Navbar = () => {
           </div>
 
           {/* Mobile search */}
-          <form onSubmit={handleSearchSubmit} className="lg:hidden flex-1 mx-2 sm:mx-3 max-w-sm">
+          <div className="lg:hidden flex-1 mx-2 sm:mx-3 max-w-sm relative" ref={mobileSearchRef}>
+          <form onSubmit={handleSearchSubmit}>
             <div className="flex items-center rounded-full gap-1.5 px-3 py-2" style={{ backgroundColor:"var(--input-bg)" }}>
               <Search size={15} style={{ color:"var(--muted)" }} className="shrink-0" />
               <input type="search" placeholder="Search..." value={q} onChange={e => setQ(e.target.value)}
+                onFocus={() => q.trim() && setShowDrop(true)}
                 className="bg-transparent outline-none text-sm w-full" style={{ color:"var(--text)" }} />
+              {searching && <span className="text-xs" style={{ color:"var(--muted)" }}>…</span>}
             </div>
           </form>
+          {showDrop && <SearchSuggestions query={q} results={liveResults} loading={searching} onSelect={goToResult} />}
+          </div>
 
           {/* Desktop nav */}
           <nav className="hidden lg:flex items-center flex-1 justify-between ml-8">
@@ -113,87 +145,23 @@ const Navbar = () => {
                 <NavLink to="/new"     className={navLink}><Sparkles size={17}/><span>New</span></NavLink>
                 <NavLink to="/popular" className={navLink}><Flame size={17}/><span>Popular</span></NavLink>
               </div>
-              <div className="relative" ref={searchRef}>
+              <div className="relative" ref={desktopSearchRef}>
                 <form onSubmit={handleSearchSubmit} className="flex items-center rounded-full gap-2 px-4 py-2 w-52 xl:w-64" style={{ backgroundColor:"var(--input-bg)" }}>
                   <Search size={16} style={{ color:"var(--muted)" }} className="shrink-0" />
                   <input type="search" placeholder="Search topics, communities..." value={q} onChange={e => setQ(e.target.value)}
-                    onFocus={() => q.trim() && liveResults && setShowDrop(true)}
+                    onFocus={() => q.trim() && setShowDrop(true)}
                     className="bg-transparent outline-none text-sm w-full" style={{ color:"var(--text)" }} />
                   {searching && <span className="text-xs" style={{ color:"var(--muted)" }}>...</span>}
                 </form>
 
-                {/* Live search dropdown */}
-                {showDrop && liveResults && q.trim() && (
-                  <div className="absolute top-full left-0 mt-2 w-80 rounded-xl shadow-2xl z-50 overflow-hidden"
-                    style={{ backgroundColor:"var(--surface)", border:"1px solid var(--border)" }}>
-
-                    {/* Communities */}
-                    {liveResults.communities.length > 0 && (
-                      <div>
-                        <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color:"var(--muted)", borderBottom:"1px solid var(--border)" }}>Communities</p>
-                        {liveResults.communities.slice(0,3).map(c => (
-                          <button key={c.id} onClick={() => goToResult(`/w/${c.slug}`)}
-                            className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[var(--surface2)] transition-colors text-left">
-                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 text-white" style={{ backgroundColor:"var(--accent)" }}>
-                              {c.name[0].toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium truncate" style={{ color:"var(--text)" }}>w/{c.name}</p>
-                              <p className="text-xs" style={{ color:"var(--muted)" }}>{c.member_count?.toLocaleString()} members</p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Users */}
-                    {liveResults.users.length > 0 && (
-                      <div>
-                        <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color:"var(--muted)", borderBottom:"1px solid var(--border)", borderTop:"1px solid var(--border)" }}>People</p>
-                        {liveResults.users.slice(0,3).map(u => (
-                          <button key={u.id} onClick={() => goToResult(`/user/${u.id}`)}
-                            className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[var(--surface2)] transition-colors text-left">
-                            {u.profile_image
-                              ? <img src={imgUrl(u.profile_image)} className="w-7 h-7 rounded-full object-cover shrink-0" alt="" />
-                              : <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ backgroundColor:"var(--accent)" }}>{u.username[0].toUpperCase()}</div>}
-                            <p className="text-sm font-medium truncate" style={{ color:"var(--text)" }}>{u.username}</p>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Posts */}
-                    {liveResults.posts.length > 0 && (
-                      <div>
-                        <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color:"var(--muted)", borderBottom:"1px solid var(--border)", borderTop:"1px solid var(--border)" }}>Posts</p>
-                        {liveResults.posts.slice(0,3).map(p => (
-                          <button key={p.id} onClick={() => goToResult(`/post/${p.id}`)}
-                            className="w-full px-3 py-2.5 hover:bg-[var(--surface2)] transition-colors text-left">
-                            <p className="text-sm font-medium truncate" style={{ color:"var(--text)" }}>{p.title}</p>
-                            <p className="text-xs" style={{ color:"var(--muted)" }}>w/{p.community_name}</p>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* See all */}
-                    {(liveResults.posts.length > 0 || liveResults.users.length > 0 || liveResults.communities.length > 0) && (
-                      <button onClick={() => goToResult(`/search?q=${encodeURIComponent(q.trim())}`)}
-                        className="w-full px-3 py-2.5 text-xs font-semibold text-center hover:bg-[var(--surface2)] transition-colors"
-                        style={{ color:"var(--accent)", borderTop:"1px solid var(--border)" }}>
-                        See all results for "{q}"
-                      </button>
-                    )}
-
-                    {liveResults.posts.length === 0 && liveResults.users.length === 0 && liveResults.communities.length === 0 && (
-                      <p className="px-3 py-4 text-sm text-center" style={{ color:"var(--muted)" }}>No results for "{q}"</p>
-                    )}
-                  </div>
-                )}
+                {showDrop && <SearchSuggestions query={q} results={liveResults} loading={searching} onSelect={goToResult} />}
               </div>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
+              <NavLink to="/settings" aria-label="Settings" title="Settings" className="p-2 rounded-full hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--muted)" }}>
+                <Settings size={18} />
+              </NavLink>
               {/* Theme toggle */}
               <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--muted)" }} title="Toggle theme">
                 {isDark ? <Sun size={18} /> : <Moon size={18} />}
@@ -225,10 +193,10 @@ const Navbar = () => {
                             className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
                             <User size={15} style={{ color:"var(--muted)" }} /> Profile
                           </NavLink>
-                          <button onClick={() => setProfileOpen(false)}
+                          <NavLink to="/settings" onClick={() => setProfileOpen(false)}
                             className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
                             <Settings size={15} style={{ color:"var(--muted)" }} /> Settings
-                          </button>
+                          </NavLink>
                           {/* Theme in dropdown */}
                           <button onClick={toggleTheme}
                             className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
@@ -321,6 +289,12 @@ const Navbar = () => {
             <NavLink to="/home"    onClick={() => setMenuOpen(false)} className={menuLink}><Home size={19} /> Home</NavLink>
             <NavLink to="/new"     onClick={() => setMenuOpen(false)} className={menuLink}><Sparkles size={19} /> New</NavLink>
             <NavLink to="/popular" onClick={() => setMenuOpen(false)} className={menuLink}><Flame size={19} /> Popular</NavLink>
+            {isAuthenticated && (
+              <button onClick={() => { setMenuOpen(false); setShowCreateCommunity(true); }}
+                className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-[var(--text)] transition-colors hover:bg-[var(--surface2)]">
+                <PlusCircle size={19} /> Create Community
+              </button>
+            )}
           </div>
 
           <div style={{ borderTop:"1px solid var(--border)" }} className="pt-3">
@@ -328,6 +302,10 @@ const Navbar = () => {
               {isDark ? <Sun size={18} style={{ color:"var(--muted)" }} /> : <Moon size={18} style={{ color:"var(--muted)" }} />}
               {isDark ? "Light Mode" : "Dark Mode"}
             </button>
+            <NavLink to="/settings" onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
+              <Settings size={18} style={{ color:"var(--muted)" }} /> Settings
+            </NavLink>
           </div>
 
           {isAuthenticated && (

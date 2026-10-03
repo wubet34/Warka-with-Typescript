@@ -11,9 +11,6 @@ export const searchAll = async (req: Request, res: Response): Promise<void> => {
     }
 
     const term = q.trim();
-    // Use plainto_tsquery for safe full-text search + ILIKE fallback for partial matches
-    const tsQuery = term.split(/\s+/).filter(Boolean).join(" & ");
-
     const [postsResult, usersResult, communitiesResult] = await Promise.all([
       pool.query(
         `SELECT
@@ -23,19 +20,19 @@ export const searchAll = async (req: Request, res: Response): Promise<void> => {
            c.id   AS community_id, c.name AS community_name, c.slug AS community_slug,
            ts_rank(
              to_tsvector('english', coalesce(p.title,'') || ' ' || coalesce(p.content,'')),
-             to_tsquery('english', $2)
+             plainto_tsquery('english', $2)
            ) AS rank
          FROM posts p
          JOIN users       u ON p.user_id       = u.id
          JOIN communities c ON p.community_id  = c.id
          WHERE
            to_tsvector('english', coalesce(p.title,'') || ' ' || coalesce(p.content,''))
-             @@ to_tsquery('english', $2)
+             @@ plainto_tsquery('english', $2)
            OR p.title   ILIKE $1
            OR p.content ILIKE $1
          ORDER BY rank DESC, p.created_at DESC
          LIMIT 20`,
-        [`%${term}%`, tsQuery]
+        [`%${term}%`, term]
       ),
       pool.query(
         `SELECT id, username, bio, profile_image, cover_image
@@ -70,8 +67,6 @@ export const searchPosts = async (req: Request, res: Response): Promise<void> =>
     const { q } = req.query as { q?: string };
     if (!q?.trim()) { res.json({ success: true, posts: [] }); return; }
     const term = q.trim();
-    const tsQuery = term.split(/\s+/).filter(Boolean).join(" & ");
-
     const result = await pool.query(
       `SELECT p.*, u.username,
               c.name AS community_name, c.slug AS community_slug
@@ -80,11 +75,11 @@ export const searchPosts = async (req: Request, res: Response): Promise<void> =>
        JOIN communities c ON p.community_id = c.id
        WHERE
          to_tsvector('english', coalesce(p.title,'') || ' ' || coalesce(p.content,''))
-           @@ to_tsquery('english', $2)
+           @@ plainto_tsquery('english', $2)
          OR p.title   ILIKE $1
          OR p.content ILIKE $1
        ORDER BY p.created_at DESC LIMIT 20`,
-      [`%${term}%`, tsQuery]
+      [`%${term}%`, term]
     );
     res.json({ success: true, posts: result.rows });
   } catch (error) {
