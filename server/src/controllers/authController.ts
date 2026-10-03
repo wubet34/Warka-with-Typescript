@@ -7,6 +7,8 @@ import { AuthRequest } from "../middleware/authMiddleware.js";
 import { storeImage } from "../utils/media.js";
 
 const googleClient = new OAuth2Client();
+// Public Web client ID also used as the frontend fallback. Deployments can override it.
+const defaultGoogleClientId = "181033328239-fpqurruvqapfc2afnf87iv3b1m378dgi.apps.googleusercontent.com";
 
 export const getMe = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -77,13 +79,9 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const googleLogin = async (req: Request, res: Response): Promise<void> => {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientId = process.env.GOOGLE_CLIENT_ID?.trim() || defaultGoogleClientId;
   const { credential } = req.body as { credential?: string };
 
-  if (!clientId) {
-    res.status(503).json({ success: false, message: "Google sign-in is not configured." });
-    return;
-  }
   if (!credential) {
     res.status(400).json({ success: false, message: "Google credential is required." });
     return;
