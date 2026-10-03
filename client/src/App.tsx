@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Navbar from './components/layout/Navbar'
 import HomeFeed from './pages/HomeFeed'
 import NewFeed from './pages/NewFeed'
@@ -13,6 +13,8 @@ import RightSidebar from './pages/RightSidebar'
 import SettingsPage from './pages/SettingsPage'
 
 function App() {
+  const isSearchPage = useLocation().pathname === '/search'
+
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] font-sans">
       <Navbar />
@@ -21,11 +23,11 @@ function App() {
         <div className="flex gap-4 lg:gap-6">
 
           {/* Left Sidebar — desktop only */}
-          <aside className="hidden lg:block w-64 xl:w-72 shrink-0">
+          {!isSearchPage && <aside className="hidden lg:block w-64 xl:w-72 shrink-0">
             <div className="sticky top-[76px]">
               <Sidebar />
             </div>
-          </aside>
+          </aside>}
 
           {/* Main content — full width on mobile */}
           <main className="flex-1 min-w-0 pb-24 lg:pb-8">
@@ -44,11 +46,11 @@ function App() {
           </main>
 
           {/* Right Sidebar — desktop only */}
-          <aside className="hidden xl:block w-64 shrink-0">
+          {!isSearchPage && <aside className="hidden xl:block w-64 shrink-0">
             <div className="sticky top-[76px]">
               <RightSidebar />
             </div>
-          </aside>
+          </aside>}
 
         </div>
       </div>
