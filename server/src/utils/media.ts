@@ -1,7 +1,7 @@
 import pool from "../config/db.js";
 
 export const storeImage = async (file: Express.Multer.File): Promise<string> => {
-  const result = await pool.query<{ id: string }>(
+  const result = await pool.query<{ id: number }>(
     `INSERT INTO media_assets (content_type, data)
      VALUES ($1, $2)
      RETURNING id`,

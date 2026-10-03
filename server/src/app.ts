@@ -11,7 +11,7 @@ import searchRoutes from "./routes/searchRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import mediaRoutes from "./routes/mediaRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
-import { uploadsDir } from "./utils/uploads.js";
+
 
 const app = express();
 
@@ -63,7 +63,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Serve files from the same configured directory used by both upload handlers.
-app.use("/uploads", express.static(uploadsDir));
+
 
 app.use("/api/auth", authRoutes);
 app.use("/api/posts", postRoutes);
