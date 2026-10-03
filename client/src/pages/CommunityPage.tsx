@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2, Users, FileText } from "lucide-react";
 import type { Community, Post } from "../types/index";
@@ -7,11 +7,12 @@ import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import PostCard from "../components/ui/PostCard";
 import CreatePostForm from "../components/ui/CreatePostForm";
+import RealtimePostNotice from "../components/ui/RealtimePostNotice";
 import api from "../api/client";
 
 const CommunityPage = () => {
   const { communitySlug } = useParams<{ communitySlug: string }>();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { socket, joinCommunity, leaveCommunity } = useSocket();
   const [community, setCommunity] = useState<Community | null>(null);
   const [posts, setPosts]         = useState<Post[]>([]);
@@ -19,15 +20,26 @@ const CommunityPage = () => {
   const [error, setError]         = useState("");
   const [joined, setJoined]       = useState(false);
   const [joining, setJoining]     = useState(false);
-  const [newCount, setNewCount]   = useState(0);
+  const [livePostNotice, setLivePostNotice] = useState<Post | null>(null);
+  const knownPostIds = useRef(new Set<number>());
 
   useEffect(() => {
     if (!communitySlug) return;
     setLoading(true); setError("");
+    setCommunity(null);
+    setPosts([]);
+    setLivePostNotice(null);
+    knownPostIds.current.clear();
     communityService.getCommunityBySlug(communitySlug)
       .then(async c => {
         setCommunity(c);
-        setPosts(await communityService.getCommunityPosts(c.id));
+        const loadedPosts = await communityService.getCommunityPosts(c.id);
+        setPosts(current => {
+          const byId = new Map([...loadedPosts, ...current].map(post => [post.id, post]));
+          const merged = [...byId.values()].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          knownPostIds.current = new Set(merged.map(post => post.id));
+          return merged;
+        });
         // Check if user is already a member
         if (isAuthenticated) {
           try {
@@ -43,10 +55,22 @@ const CommunityPage = () => {
   useEffect(() => {
     if (!community?.id) return;
     joinCommunity(community.id);
-    const h = (_p: Post) => setNewCount(n => n + 1);
+    const h = (post: Post) => {
+      if (Number(post.community_id) !== community.id || knownPostIds.current.has(post.id)) return;
+      knownPostIds.current.add(post.id);
+      setPosts(current => [post, ...current.filter(existing => existing.id !== post.id)]);
+      setCommunity(current => current ? { ...current, post_count: current.post_count + 1 } : current);
+      if (post.user_id !== user?.id) setLivePostNotice(post);
+    };
     socket.on("new_post", h);
     return () => { leaveCommunity(community.id); socket.off("new_post", h); };
-  }, [community?.id, socket, joinCommunity, leaveCommunity]);
+  }, [community?.id, socket, joinCommunity, leaveCommunity, user?.id]);
+
+  useEffect(() => {
+    if (!livePostNotice) return;
+    const timer = window.setTimeout(() => setLivePostNotice(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [livePostNotice]);
 
   const handleJoin = async () => {
     if (!community) return;
@@ -74,6 +98,7 @@ const CommunityPage = () => {
 
   return (
     <div className="space-y-4">
+      {livePostNotice && <RealtimePostNotice post={livePostNotice} onClose={() => setLivePostNotice(null)} />}
       {/* Community header */}
       <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)" }}>
         {community.banner
@@ -110,15 +135,11 @@ const CommunityPage = () => {
       </div>
 
       {isAuthenticated && (
-        <CreatePostForm onPostCreated={p => setPosts(prev => [p, ...prev])} defaultCommunityId={community.id} />
-      )}
-
-      {newCount > 0 && (
-        <button onClick={() => { setNewCount(0); communityService.getCommunityPosts(community.id).then(setPosts).catch(console.error); }}
-          className="w-full py-2.5 rounded-2xl text-sm font-semibold text-white hover:opacity-90 transition-opacity"
-          style={{ backgroundColor: "var(--accent)" }}>
-          ↑ {newCount} new post{newCount !== 1 ? "s" : ""} — click to load
-        </button>
+        <CreatePostForm onPostCreated={p => {
+          knownPostIds.current.add(p.id);
+          setPosts(prev => [p, ...prev.filter(existing => existing.id !== p.id)]);
+          setCommunity(current => current ? { ...current, post_count: current.post_count + 1 } : current);
+        }} defaultCommunityId={community.id} />
       )}
 
       {posts.length === 0

@@ -6,37 +6,49 @@ import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import PostCard from "../components/ui/PostCard";
 import CreatePostForm from "../components/ui/CreatePostForm";
+import RealtimePostNotice from "../components/ui/RealtimePostNotice";
 import warkaLogo from "../assets/warka-logo-web.png";
 
 const HomeFeed = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { socket, joinFeed, leaveFeed } = useSocket();
   const [posts, setPosts]     = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
-  const [newCount, setNewCount] = useState(0);
+  const [livePostNotice, setLivePostNotice] = useState<Post | null>(null);
 
   useEffect(() => {
-    postService.getFeed().then(setPosts).catch(() => setError("Failed to load posts.")).finally(() => setLoading(false));
+    postService.getFeed().then(loaded => setPosts(current => {
+      const byId = new Map([...loaded, ...current].map(post => [post.id, post]));
+      return [...byId.values()].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    })).catch(() => setError("Failed to load posts.")).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
     joinFeed();
-    const onNew = (_p: Post) => setNewCount(n => n + 1);
+    const onNew = (post: Post) => {
+      setPosts(current => {
+        if (current.some(existing => existing.id === post.id)) return current;
+        return [post, ...current];
+      });
+      if (post.user_id !== user?.id) setLivePostNotice(post);
+    };
     const onVote = ({ postId, voteScore }: { postId: number; voteScore: number }) =>
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, vote_score: voteScore } : p));
     socket.on("new_post", onNew);
     socket.on("vote_update", onVote);
     return () => { leaveFeed(); socket.off("new_post", onNew); socket.off("vote_update", onVote); };
-  }, [socket, joinFeed, leaveFeed]);
+  }, [socket, joinFeed, leaveFeed, user?.id]);
 
-  const handleLoadNew = () => {
-    setLoading(true); setNewCount(0);
-    postService.getFeed().then(setPosts).catch(() => setError("Failed to reload.")).finally(() => setLoading(false));
-  };
+  useEffect(() => {
+    if (!livePostNotice) return;
+    const timer = window.setTimeout(() => setLivePostNotice(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [livePostNotice]);
 
   return (
     <div className="space-y-4">
+      {livePostNotice && <RealtimePostNotice post={livePostNotice} onClose={() => setLivePostNotice(null)} />}
       {!isAuthenticated && (
         <section className="flex items-center gap-4 rounded-2xl border p-4 sm:gap-6 sm:p-5"
           style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}>
@@ -49,15 +61,7 @@ const HomeFeed = () => {
           </div>
         </section>
       )}
-      {isAuthenticated && <CreatePostForm onPostCreated={p => setPosts(prev => [p, ...prev])} />}
-
-      {newCount > 0 && (
-        <button onClick={handleLoadNew}
-          className="w-full py-2.5 rounded-2xl text-sm font-semibold text-white flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-          style={{ backgroundColor: "var(--accent)" }}>
-          ↑ {newCount} new post{newCount !== 1 ? "s" : ""} — click to refresh
-        </button>
-      )}
+      {isAuthenticated && <CreatePostForm onPostCreated={p => setPosts(prev => prev.some(existing => existing.id === p.id) ? prev : [p, ...prev])} />}
 
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 size={28} className="animate-spin" style={{ color: "var(--accent)" }} /></div>
