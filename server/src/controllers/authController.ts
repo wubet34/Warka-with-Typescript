@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
 import { AuthRequest } from "../middleware/authMiddleware.js";
+import { storeImage } from "../utils/media.js";
 
 export const getMe = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -157,8 +158,8 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
       }
     }
 
-    const profileImage = avatarFile ? `/uploads/${avatarFile.filename}` : currentProfile?.profile_image;
-    const coverImage   = coverFile  ? `/uploads/${coverFile.filename}`  : currentProfile?.cover_image;
+    const profileImage = avatarFile ? await storeImage(avatarFile) : currentProfile?.profile_image;
+    const coverImage   = coverFile  ? await storeImage(coverFile)  : currentProfile?.cover_image;
 
     const result = await pool.query(
       `UPDATE users

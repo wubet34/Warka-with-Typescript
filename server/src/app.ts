@@ -9,6 +9,7 @@ import voteRoutes from "./routes/voteRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import searchRoutes from "./routes/searchRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import mediaRoutes from "./routes/mediaRoutes.js";
 import { uploadsDir } from "./utils/uploads.js";
 
 const app = express();
@@ -71,6 +72,7 @@ app.use("/api/votes", voteRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/media", mediaRoutes);
 
 // Multer error handler — converts multer errors to clean 400 responses
 // instead of unhandled 500s

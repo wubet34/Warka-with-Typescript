@@ -3,6 +3,7 @@ import pool from "../config/db.js";
 import { AuthRequest } from "../middleware/authMiddleware.js";
 import { emitNewPost } from "../socket.js";
 import { notify } from "../utils/notify.js";
+import { storeImage } from "../utils/media.js";
 
 export const createPost = async (req: Request, res: Response): Promise<void> => {
   const client = await pool.connect();
@@ -15,11 +16,6 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     };
     const user_id = (req as AuthRequest).user.id;
 
-    // Image path comes from multer (if uploaded)
-    const imagePath = req.file
-      ? `/uploads/${req.file.filename}`
-      : undefined;
-
     if (!title || !community_id) {
       res.status(400).json({
         success: false,
@@ -29,7 +25,7 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Must have at least one of: content, image, or link
-    if (!content && !imagePath && !link) {
+    if (!content && !req.file && !link) {
       res.status(400).json({
         success: false,
         message: "Post must have text content, an image, or a link.",
@@ -38,6 +34,16 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     }
 
     await client.query("BEGIN");
+
+    let imagePath: string | null = null;
+    if (req.file) {
+      const storedImage = await client.query(
+        `INSERT INTO media_assets (content_type, data)
+         VALUES ($1, $2) RETURNING id`,
+        [req.file.mimetype, req.file.buffer]
+      );
+      imagePath = `/media/${storedImage.rows[0].id}`;
+    }
 
     const community = await client.query(
       "SELECT id FROM communities WHERE id = $1",
@@ -53,7 +59,7 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     const inserted = await client.query(
       `INSERT INTO posts (title, content, image, link, user_id, community_id)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [title, content || null, imagePath || null, link || null, user_id, community_id]
+      [title, content || null, imagePath, link || null, user_id, community_id]
     );
 
     await client.query(
@@ -183,7 +189,7 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    const imagePath = req.file ? `/uploads/${req.file.filename}` : post.image;
+    const imagePath = req.file ? await storeImage(req.file) : post.image;
     const updated = await pool.query(
       `UPDATE posts
        SET title = $1, content = $2, image = $3, link = $4, updated_at = CURRENT_TIMESTAMP

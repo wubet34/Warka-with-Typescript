@@ -10,7 +10,7 @@ A Reddit-style community platform built with React + TypeScript (frontend) and E
 | Backend  | Express 5, TypeScript, Node 20+ |
 | Database | PostgreSQL (NeonDB for production) |
 | Realtime | Socket.io |
-| Storage  | Local disk (dev) / Render persistent disk (prod) |
+| Storage  | PostgreSQL for new uploads; local/Render disk for legacy uploads |
 | Deploy   | Frontend → Vercel, Backend → Render, DB → NeonDB |
 
 ---
@@ -77,14 +77,14 @@ Open `http://localhost:5173`
 
 1. Go to [neon.tech](https://neon.tech) → Create a project → Create database `warka_db`
 2. Copy the **pooled connection string** (looks like `postgresql://user:pass@ep-xxx.neon.tech/warka_db?sslmode=require`)
-3. Run migrations once:
+3. Run the migrations (safe to rerun when deploying schema updates):
 
 ```bash
 cd server
-DATABASE_URL="your_neon_connection_string" npx tsx src/db/migrate.ts
+DATABASE_URL="your_neon_connection_string" npm run migrate
 ```
 
-Run this from `server/`. The command initializes the tables used by the application.
+Run this from `server/`. The migration initializes the tables used by the application, including shared image storage. New post and profile uploads are stored in PostgreSQL so local and deployed app instances can serve the same image URLs.
 
 ---
 
@@ -141,7 +141,7 @@ Run this from `server/`. The command initializes the tables used by the applicat
 
 - Keep real credentials in Render/Vercel environment settings and local `.env` files; never put them in source files or commit them.
 - Confirm `client/.env` points at the deployed API when making a production frontend build. Vercel uses `VITE_API_URL` from its project environment settings.
-- Uploaded images are stored on Render's persistent disk. Keep the disk mounted at the path configured by `UPLOADS_DIR` so uploads survive deploys.
+- Legacy uploads are served from Render's persistent disk. New uploads are stored in PostgreSQL and shared between local and deployed app instances.
 
 ---
 

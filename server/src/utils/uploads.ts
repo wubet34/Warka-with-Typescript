@@ -1,8 +1,10 @@
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
-// Use the same directory for writing and serving files. On Render this points
-// at the persistent disk; locally it defaults to server/uploads.
-export const uploadsDir = path.resolve(process.env.UPLOADS_DIR ?? path.join(process.cwd(), "uploads"));
+// Use the same directory for writing and serving files. Keep the local default
+// anchored to the server package so it doesn't change with the launch directory.
+const serverDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+export const uploadsDir = path.resolve(process.env.UPLOADS_DIR ?? path.join(serverDir, "uploads"));
 
 fs.mkdirSync(uploadsDir, { recursive: true });

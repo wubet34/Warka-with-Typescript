@@ -27,6 +27,14 @@ const pool = new Pool(
 );
 
 const sql = `
+-- Shared image storage so local and deployed app instances can load the same uploads
+CREATE TABLE IF NOT EXISTS media_assets (
+    id BIGSERIAL PRIMARY KEY,
+    content_type VARCHAR(100) NOT NULL,
+    data BYTEA NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Users
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
