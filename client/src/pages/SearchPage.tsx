@@ -63,7 +63,7 @@ const SearchPage = () => {
   const card = { backgroundColor: "var(--surface)", border: "1px solid var(--border)" };
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto w-[94%] min-w-0 max-w-2xl space-y-4 sm:w-full">
       {/* Header */}
       {q.trim() && <div className="rounded-2xl px-4 py-4" style={card}>
         <div className="flex items-center gap-2 mb-1">
