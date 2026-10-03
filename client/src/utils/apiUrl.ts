@@ -5,7 +5,7 @@ const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 export const API_BASE_URL = (
   configuredApiUrl ||
   (import.meta.env.PROD
-    ? "https://warka-server.onrender.com/api"
+    ? "https://warka-my9n.onrender.com/api"
     : "http://localhost:5000/api")
 ).replace(/\/+$/, "");
 

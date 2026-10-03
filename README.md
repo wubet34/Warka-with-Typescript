@@ -139,7 +139,7 @@ Run this from `server/`. The migration initializes the tables used by the applic
 
 | Key | Value |
 |-----|-------|
-| `VITE_API_URL` | `https://warka-server.onrender.com/api` (the frontend falls back to this Render URL if unset) |
+| `VITE_API_URL` | `https://warka-my9n.onrender.com/api` (the frontend falls back to this Render URL if unset) |
 | `VITE_GOOGLE_CLIENT_ID` | Same public Web client ID as Render's `GOOGLE_CLIENT_ID` (only needed when overriding the project default) |
 
 4. Deploy → copy your Vercel URL
