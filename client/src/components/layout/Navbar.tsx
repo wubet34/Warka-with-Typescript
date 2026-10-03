@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Flame, Home, LogIn, Search, Sparkles, UserPlus, Menu, X, User, Settings, LogOut, ChevronDown, PlusCircle, Sun, Moon } from "lucide-react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { searchService } from "../../services/searchService";
@@ -23,12 +23,19 @@ const Navbar = () => {
   const [liveResults, setLiveResults] = useState<{ posts: Post[]; users: UserType[]; communities: Community[] } | null>(null);
   const [searching, setSearching]     = useState(false);
   const [showDrop, setShowDrop]       = useState(false);
+  const location = useLocation();
   const profileRef  = useRef<HTMLDivElement>(null);
   const desktopSearchRef = useRef<HTMLDivElement>(null);
   const mobileSearchRef = useRef<HTMLDivElement>(null);
   const searchRequestRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (location.pathname === "/search") {
+      setQ(new URLSearchParams(location.search).get("q") ?? "");
+    }
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -89,6 +96,12 @@ const Navbar = () => {
     e.preventDefault();
     if (q.trim()) { setShowDrop(false); navigate(`/search?q=${encodeURIComponent(q.trim())}`); }
   };
+  const handleSearchChange = (value: string) => {
+    setQ(value);
+    if (location.pathname === "/search" && !value.trim() && location.search) {
+      navigate("/search", { replace: true });
+    }
+  };
   const goToResult = (path: string) => { setShowDrop(false); setQ(""); navigate(path); };
 
   const avatarSrc = imgUrl(user?.profile_image);
@@ -128,7 +141,7 @@ const Navbar = () => {
           <form onSubmit={handleSearchSubmit}>
             <div className="flex items-center rounded-full gap-1.5 px-3 py-2" style={{ backgroundColor:"var(--input-bg)" }}>
               <Search size={15} style={{ color:"var(--muted)" }} className="shrink-0" />
-              <input type="search" placeholder="Search..." value={q} onChange={e => setQ(e.target.value)}
+              <input type="search" placeholder="Search..." value={q} onChange={e => handleSearchChange(e.target.value)}
                 onFocus={() => q.trim() && setShowDrop(true)}
                 className="bg-transparent outline-none text-sm w-full" style={{ color:"var(--text)" }} />
               {searching && <span className="text-xs" style={{ color:"var(--muted)" }}>…</span>}
@@ -148,7 +161,7 @@ const Navbar = () => {
               <div className="relative" ref={desktopSearchRef}>
                 <form onSubmit={handleSearchSubmit} className="flex items-center rounded-full gap-2 px-4 py-2 w-52 xl:w-64" style={{ backgroundColor:"var(--input-bg)" }}>
                   <Search size={16} style={{ color:"var(--muted)" }} className="shrink-0" />
-                  <input type="search" placeholder="Search topics, communities..." value={q} onChange={e => setQ(e.target.value)}
+                  <input type="search" placeholder="Search topics, communities..." value={q} onChange={e => handleSearchChange(e.target.value)}
                     onFocus={() => q.trim() && setShowDrop(true)}
                     className="bg-transparent outline-none text-sm w-full" style={{ color:"var(--text)" }} />
                   {searching && <span className="text-xs" style={{ color:"var(--muted)" }}>...</span>}

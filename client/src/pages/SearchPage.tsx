@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, NavLink } from "react-router-dom";
 import { Loader2, Search, Users, FileText, Hash } from "lucide-react";
 import type { Post, User, Community } from "../types/index";
@@ -17,19 +17,36 @@ const SearchPage = () => {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading]       = useState(false);
   const [searched, setSearched]     = useState("");
+  const requestRef = useRef(0);
 
   const doSearch = useCallback(async (query: string) => {
-    if (!query.trim()) return;
+    const requestId = ++requestRef.current;
     setLoading(true);
     try {
       const r = await searchService.searchAll(query.trim());
+      if (requestId !== requestRef.current) return;
       setPosts(r.posts); setUsers(r.users); setCommunities(r.communities);
       setSearched(query.trim());
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    } catch (e) {
+      if (requestId === requestRef.current) console.error(e);
+    } finally {
+      if (requestId === requestRef.current) setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { if (q) doSearch(q); }, [q, doSearch]);
+  useEffect(() => {
+    const query = q.trim();
+    if (query) {
+      doSearch(query);
+      return;
+    }
+    requestRef.current += 1;
+    setPosts([]);
+    setUsers([]);
+    setCommunities([]);
+    setSearched("");
+    setLoading(false);
+  }, [q, doSearch]);
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode; count: number }[] = [
     { key: "all",         label: "All",         icon: <Search size={14} />,   count: posts.length + users.length + communities.length },
@@ -47,16 +64,16 @@ const SearchPage = () => {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="rounded-2xl px-4 py-4" style={card}>
+      {q.trim() && <div className="rounded-2xl px-4 py-4" style={card}>
         <div className="flex items-center gap-2 mb-1">
           <Search size={16} style={{ color: "var(--accent)" }} />
           <span className="text-xs" style={{ color: "var(--muted)" }}>Search results for</span>
         </div>
         <h1 className="text-lg font-bold truncate" style={{ color: "var(--text)" }}>"{q}"</h1>
-      </div>
+      </div>}
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-2xl p-1.5" style={card}>
+      {(q.trim() || searched) && <div className="flex gap-1 rounded-2xl p-1.5" style={card}>
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-semibold transition-colors"
@@ -75,16 +92,11 @@ const SearchPage = () => {
             )}
           </button>
         ))}
-      </div>
+      </div>}
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin" style={{ color: "var(--accent)" }} /></div>
-      ) : !searched ? (
-        <div className="text-center py-16" style={{ color: "var(--muted)" }}>
-          <Search size={40} className="mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Enter a search term above</p>
-        </div>
-      ) : posts.length + users.length + communities.length === 0 ? (
+      ) : !searched ? null : posts.length + users.length + communities.length === 0 ? (
         <div className="text-center py-16" style={{ color: "var(--muted)" }}>
           <Search size={40} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm font-medium">No results for "{searched}"</p>
