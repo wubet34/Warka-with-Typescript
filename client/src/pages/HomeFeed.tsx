@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import PostCard from "../components/ui/PostCard";
 import CreatePostForm from "../components/ui/CreatePostForm";
+import warkaLogo from "../assets/warka-logo-web.png";
 
 const HomeFeed = () => {
   const { isAuthenticated } = useAuth();
@@ -36,6 +37,18 @@ const HomeFeed = () => {
 
   return (
     <div className="space-y-4">
+      {!isAuthenticated && (
+        <section className="flex items-center gap-4 rounded-2xl border p-4 sm:gap-6 sm:p-5"
+          style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}>
+          <img src={warkaLogo} alt="Warka — Where Ethiopia Connects"
+            className="h-20 w-20 shrink-0 rounded-xl bg-white object-contain p-1 sm:h-24 sm:w-24" />
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--accent)" }}>Where Ethiopia Connects</p>
+            <h1 className="mt-1 text-lg font-bold sm:text-xl" style={{ color: "var(--text)" }}>Welcome to Warka</h1>
+            <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>Explore conversations and communities from across Ethiopia.</p>
+          </div>
+        </section>
+      )}
       {isAuthenticated && <CreatePostForm onPostCreated={p => setPosts(prev => [p, ...prev])} />}
 
       {newCount > 0 && (

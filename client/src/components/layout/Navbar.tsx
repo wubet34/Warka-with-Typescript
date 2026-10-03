@@ -133,7 +133,10 @@ const Navbar = () => {
             <button onClick={() => setMenuOpen(true)} className="lg:hidden p-2 -ml-1 rounded-lg hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--muted)" }}>
               <Menu size={24} />
             </button>
-            <NavLink to="/home" className="hidden lg:block text-2xl font-bold" style={{ color:"var(--accent)" }}>Warka</NavLink>
+            <NavLink to="/home" className="flex items-center gap-2 text-xl sm:text-2xl font-bold" style={{ color:"var(--accent)" }}>
+              <img src="/warka-icon.png" alt="" className="h-8 w-8 rounded-lg object-cover" />
+              <span className="hidden sm:inline">Warka</span>
+            </NavLink>
           </div>
 
           {/* Mobile search */}
@@ -263,7 +266,10 @@ const Navbar = () => {
       <div className={`lg:hidden fixed top-0 left-0 h-full w-80 max-w-[85vw] shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ${menuOpen?"translate-x-0":"-translate-x-full"}`}
         style={{ backgroundColor:"var(--surface)" }}>
         <div className="flex items-center justify-between px-4 py-4" style={{ borderBottom:"1px solid var(--border)" }}>
-          <span className="text-xl font-bold" style={{ color:"var(--accent)" }}>Warka</span>
+          <NavLink to="/home" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 text-xl font-bold" style={{ color:"var(--accent)" }}>
+            <img src="/warka-icon.png" alt="" className="h-8 w-8 rounded-lg object-cover" />
+            <span>Warka</span>
+          </NavLink>
           <button onClick={() => setMenuOpen(false)} className="p-2 rounded-lg hover:bg-[var(--surface2)]" style={{ color:"var(--muted)" }}><X size={22} /></button>
         </div>
 
