@@ -16,6 +16,8 @@ services:
         sync: false          # Set manually in Render dashboard
       - key: GOOGLE_CLIENT_ID
         value: 181033328239-fpqurruvqapfc2afnf87iv3b1m378dgi.apps.googleusercontent.com
+      - key: ADMIN_EMAIL
+        value: wubet453@gmail.com
       - key: CLIENT_URL
         sync: false          # Your Vercel URL e.g. https://warka.vercel.app
       - key: UPLOADS_DIR

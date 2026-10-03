@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Flame, Home, LogIn, Search, Sparkles, UserPlus, Menu, X, User, Settings, LogOut, ChevronDown, PlusCircle, Sun, Moon } from "lucide-react";
+import { Flame, Home, LogIn, Search, Sparkles, UserPlus, Menu, X, User, Users, Settings, LogOut, ChevronDown, PlusCircle, Sun, Moon } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -105,6 +105,8 @@ const Navbar = () => {
   const goToResult = (path: string) => { setShowDrop(false); setQ(""); navigate(path); };
 
   const avatarSrc = imgUrl(user?.profile_image);
+  const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.trim().toLowerCase() || "wubet453@gmail.com";
+  const isAdmin = !!user && user.email.toLowerCase() === adminEmail;
 
   /* ── style helpers ── */
   const navLink = ({ isActive }: { isActive: boolean }) =>
@@ -206,6 +208,10 @@ const Navbar = () => {
                             className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
                             <User size={15} style={{ color:"var(--muted)" }} /> Profile
                           </NavLink>
+                          {isAdmin && <NavLink to="/admin" onClick={() => setProfileOpen(false)}
+                            className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
+                            <Users size={15} style={{ color:"var(--muted)" }} /> Platform users
+                          </NavLink>}
                           <NavLink to="/settings" onClick={() => setProfileOpen(false)}
                             className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
                             <Settings size={15} style={{ color:"var(--muted)" }} /> Settings
@@ -327,6 +333,10 @@ const Navbar = () => {
                 className="flex items-center gap-3 px-4 py-3 text-sm rounded-xl hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
                 <User size={18} style={{ color:"var(--muted)" }} /> My Profile
               </NavLink>
+              {isAdmin && <NavLink to="/admin" onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm rounded-xl hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
+                <Users size={18} style={{ color:"var(--muted)" }} /> Platform users
+              </NavLink>}
               <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 text-sm text-red-500 rounded-xl hover:bg-red-500/10 transition-colors w-full text-left">
                 <LogOut size={18} /> Logout
               </button>
