@@ -73,6 +73,8 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
   };
 
   const postUrl = `${window.location.origin}/post/${post.id}`;
+  const canNativeShare = typeof navigator !== "undefined" &&
+    typeof (navigator as unknown as { share?: (data?: ShareData) => Promise<void> }).share === "function";
   const encodedUrl = encodeURIComponent(postUrl);
   const encodedTitle = encodeURIComponent(displayTitle);
   const socialLinks = [
@@ -289,7 +291,7 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
                   className="rounded-xl border px-4 py-3 text-center text-sm font-semibold transition-colors hover:bg-[var(--surface2)]"
                   style={{ color: "var(--text)", borderColor: "var(--border)" }}>{name}</button>
               ))}
-              {navigator.share && <button type="button" onClick={handleNativeShare}
+              {canNativeShare && <button type="button" onClick={handleNativeShare}
                 className="col-span-2 rounded-xl px-4 py-3 text-sm font-semibold transition-opacity hover:opacity-80"
                 style={{ color: "var(--surface)", backgroundColor: "var(--text)" }}>More apps</button>}
             </div>
