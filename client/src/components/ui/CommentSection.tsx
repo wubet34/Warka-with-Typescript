@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Send } from "lucide-react";
 import type { Comment } from "../../types/index";
 import { commentService } from "../../services/commentService";
@@ -20,24 +20,62 @@ const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
   const [submitting, setSubmitting] = useState(false);
   const [loginMessage, setLoginMessage] = useState("");
   const [, setCount]       = useState(initialCount);
+  const commentsById = useRef(new Map<number, Comment>());
+
+  const appendComment = useCallback((comment: Comment) => {
+    if (commentsById.current.has(comment.id)) return;
+    commentsById.current.set(comment.id, comment);
+    setFlat([...commentsById.current.values()]);
+    setCount(count => {
+      const next = count + 1;
+      onCountChange?.(next);
+      return next;
+    });
+  }, [onCountChange]);
 
   useEffect(() => {
+    commentsById.current.clear();
+    setFlat([]);
+    setLoaded(false);
     setLoading(true);
     commentService.getCommentsByPost(postId)
-      .then(d => { setFlat(d); setLoaded(true); })
+      .then(data => {
+        data.forEach(comment => {
+          if (!commentsById.current.has(comment.id)) commentsById.current.set(comment.id, comment);
+        });
+        const allComments = [...commentsById.current.values()];
+        setFlat(allComments);
+        setCount(allComments.length);
+        onCountChange?.(allComments.length);
+        setLoaded(true);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [postId]);
+  }, [postId, onCountChange]);
 
   useEffect(() => {
     joinPost(postId);
-    const h = (c: Comment) => {
-      setFlat(prev => prev.find(x => x.id === c.id) ? prev : [...prev, c]);
-      setCount(n => { const next = n + 1; onCountChange?.(next); return next; });
-    };
+    const h = (comment: Comment) => appendComment(comment);
     socket.on("new_comment", h);
     return () => { leavePost(postId); socket.off("new_comment", h); };
-  }, [postId, socket, joinPost, leavePost, onCountChange]);
+  }, [postId, socket, joinPost, leavePost, appendComment]);
+
+  const updateCommentVote = useCallback((commentId: number, voteScore: number, userVote?: 1 | -1 | 0) => {
+    const comment = commentsById.current.get(commentId);
+    if (comment) {
+      const updated = { ...comment, vote_score: voteScore, ...(userVote === undefined ? {} : { user_vote: userVote }) };
+      commentsById.current.set(commentId, updated);
+      setFlat([...commentsById.current.values()]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleVoteUpdate = (event: { postId: number; commentId: number; voteScore: number }) => {
+      if (event.postId === postId) updateCommentVote(event.commentId, event.voteScore);
+    };
+    socket.on("comment_vote_update", handleVoteUpdate);
+    return () => { socket.off("comment_vote_update", handleVoteUpdate); };
+  }, [postId, socket, updateCommentVote]);
 
   const addCount = (n: number) => setCount(c => { const next = c + n; onCountChange?.(next); return next; });
 
@@ -51,16 +89,13 @@ const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
     setSubmitting(true);
     try {
       const c = await commentService.createComment({ content: text.trim(), post_id: postId });
-      setFlat(prev => prev.find(x => x.id === c.id) ? prev : [...prev, c]);
-      addCount(1); setText("");
+      appendComment(c);
+      setText("");
     } catch (err) { console.error(err); }
     finally { setSubmitting(false); }
   };
 
-  const handleReplyAdded = (c: Comment) => {
-    setFlat(prev => prev.find(x => x.id === c.id) ? prev : [...prev, c]);
-    addCount(1);
-  };
+  const handleReplyAdded = (comment: Comment) => appendComment(comment);
 
   const handleDelete = async (id: number) => {
     try {
@@ -68,6 +103,7 @@ const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
       const toRemove = new Set<number>();
       const collect = (cid: number) => { toRemove.add(cid); flat.forEach(c => { if (c.parent_comment_id === cid) collect(c.id); }); };
       collect(id);
+      toRemove.forEach(commentId => commentsById.current.delete(commentId));
       setFlat(prev => prev.filter(c => !toRemove.has(c.id)));
       addCount(-toRemove.size);
     } catch (err) { console.error(err); }
@@ -88,8 +124,10 @@ const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
             <div className="flex-1 flex items-center rounded-full px-3 py-2 gap-1" style={{ backgroundColor: "var(--input-bg)" }}>
               <input type="text" placeholder="Add a comment..." value={text} onChange={e => setText(e.target.value)}
                 className="bg-transparent outline-none text-sm w-full" style={{ color: "var(--text)" }} />
-              <button type="submit" disabled={!text.trim() || submitting} className="disabled:opacity-40" style={{ color: "var(--accent)" }}>
-                <Send size={14} />
+              <button type="submit" disabled={!text.trim() || submitting}
+                className="flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold disabled:opacity-40 hover:bg-[var(--surface2)]"
+                style={{ color: "var(--accent)" }}>
+                <Send size={19} /> <span>Send</span>
               </button>
             </div>
           </form>
@@ -114,7 +152,7 @@ const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
           <div className="space-y-1">
             {tree.map(node => (
               <CommentItem key={node.id} comment={node} postId={postId}
-                depth={0} onDelete={handleDelete} onReplyAdded={handleReplyAdded} />
+                depth={0} onDelete={handleDelete} onReplyAdded={handleReplyAdded} onVoteChanged={updateCommentVote} />
             ))}
           </div>
         )}

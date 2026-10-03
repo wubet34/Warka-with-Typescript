@@ -153,3 +153,14 @@ CREATE TABLE votes (
     CONSTRAINT unique_user_vote
         UNIQUE (user_id, post_id)
 );
+
+CREATE TABLE comment_votes (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    comment_id BIGINT NOT NULL,
+    vote SMALLINT NOT NULL CHECK (vote IN (-1, 1)),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_comment_vote_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_comment_vote_comment FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
+    CONSTRAINT unique_user_comment_vote UNIQUE (user_id, comment_id)
+);

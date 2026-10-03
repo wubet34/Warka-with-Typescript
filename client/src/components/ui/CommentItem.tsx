@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { CornerDownRight, Trash2, Send, ChevronDown } from "lucide-react";
+import { CornerDownRight, Trash2, Send, ChevronDown, ArrowBigDown, ArrowBigUp } from "lucide-react";
 import type { Comment } from "../../types/index";
 import { commentService } from "../../services/commentService";
 import { useAuth } from "../../context/AuthContext";
@@ -29,15 +29,36 @@ interface Props {
   depth: number;
   onDelete: (id: number) => void;
   onReplyAdded: (c: Comment) => void;
+  onVoteChanged: (id: number, voteScore: number, userVote?: 1 | -1 | 0) => void;
 }
 
-const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded }: Props) => {
+const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded, onVoteChanged }: Props) => {
   const { user, isAuthenticated } = useAuth();
   const [collapsed, setCollapsed]   = useState(false);
   const [showReply, setShowReply]   = useState(false);
   const [replyText, setReplyText]   = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loginMessage, setLoginMessage] = useState("");
+  const [voting, setVoting] = useState(false);
+  const voteScore = Number(comment.vote_score ?? 0);
+  const userVote = comment.user_vote ?? 0;
+
+  const handleVote = async (vote: 1 | -1) => {
+    if (!isAuthenticated) {
+      setLoginMessage("Sign in or create an account to vote on comments.");
+      return;
+    }
+    if (voting) return;
+    setVoting(true);
+    try {
+      const result = await commentService.voteComment(comment.id, vote);
+      onVoteChanged(comment.id, result.vote_score, result.user_vote);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setVoting(false);
+    }
+  };
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,11 +106,29 @@ const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded }: Props) 
 
           {!collapsed && (
             <div className="flex items-center gap-3 mt-1">
+              <div className="flex items-center gap-0.5 rounded-full px-1" style={{ backgroundColor: "var(--surface)" }}>
+                <button type="button" onClick={() => void handleVote(1)} disabled={voting}
+                  aria-label="Upvote comment" aria-pressed={userVote === 1}
+                  className="rounded-full p-1 transition-colors hover:bg-[var(--surface2)] disabled:opacity-50"
+                  style={{ color: userVote === 1 ? "var(--accent)" : "var(--muted)" }}>
+                  <ArrowBigUp size={17} fill={userVote === 1 ? "currentColor" : "none"} />
+                </button>
+                <span className="min-w-4 text-center text-xs font-semibold tabular-nums"
+                  style={{ color: voteScore > 0 ? "var(--accent)" : voteScore < 0 ? "#f85149" : "var(--muted)" }}>
+                  {voteScore}
+                </span>
+                <button type="button" onClick={() => void handleVote(-1)} disabled={voting}
+                  aria-label="Downvote comment" aria-pressed={userVote === -1}
+                  className="rounded-full p-1 transition-colors hover:bg-[var(--surface2)] disabled:opacity-50"
+                  style={{ color: userVote === -1 ? "#f85149" : "var(--muted)" }}>
+                  <ArrowBigDown size={17} fill={userVote === -1 ? "currentColor" : "none"} />
+                </button>
+              </div>
               <button onClick={() => isAuthenticated
                 ? setShowReply(!showReply)
                 : setLoginMessage("Sign in or create an account to reply.")}
-                className="flex items-center gap-1 text-xs hover:text-[var(--accent)] transition-colors" style={{ color: "var(--muted)" }}>
-                <CornerDownRight size={11} /> Reply
+                className="flex items-center gap-1.5 text-sm font-medium hover:text-[var(--accent)] transition-colors" style={{ color: "var(--muted)" }}>
+                <CornerDownRight size={14} /> Reply
               </button>
               {user?.id === comment.user_id && (
                 <button onClick={() => onDelete(comment.id)}
@@ -107,8 +146,8 @@ const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded }: Props) 
                   value={replyText} onChange={e => setReplyText(e.target.value)}
                   className="bg-transparent outline-none text-xs w-full" style={{ color: "var(--text)" }} />
                 <button type="submit" disabled={!replyText.trim() || submitting}
-                  className="disabled:opacity-40" style={{ color: "var(--accent)" }}>
-                  <Send size={12} />
+                  className="flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold disabled:opacity-40 hover:bg-[var(--surface2)]" style={{ color: "var(--accent)" }}>
+                  <Send size={17} /> <span>Reply</span>
                 </button>
               </div>
               <button type="button" onClick={() => setShowReply(false)} className="text-xs hover:opacity-80" style={{ color: "var(--muted)" }}>
@@ -121,7 +160,7 @@ const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded }: Props) 
 
       {!collapsed && comment.children.map(child => (
         <CommentItem key={child.id} comment={child} postId={postId}
-          depth={depth + 1} onDelete={onDelete} onReplyAdded={onReplyAdded} />
+          depth={depth + 1} onDelete={onDelete} onReplyAdded={onReplyAdded} onVoteChanged={onVoteChanged} />
       ))}
     </div>
   );

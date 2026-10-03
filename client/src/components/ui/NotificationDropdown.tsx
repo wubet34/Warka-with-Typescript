@@ -30,17 +30,29 @@ const typeColor = (type: Notification["type"]) => {
   }
 };
 
+const typeLabel: Record<Notification["type"], string> = {
+  comment: "New comment",
+  reply: "New reply",
+  vote: "New upvote",
+  mention: "New mention",
+  new_post: "New community post",
+};
+
 const NotificationDropdown = () => {
   const { isAuthenticated, user } = useAuth();
   const { notificationsEnabled } = useSettings();
-  const { socket } = useSocket();
+  const { socket, joinUser, leaveUser } = useSocket();
   const navigate = useNavigate();
 
   const [open, setOpen]                   = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unread, setUnread]               = useState(0);
   const [loading, setLoading]             = useState(false);
+  const [liveNotice, setLiveNotice]       = useState<Notification | null>(null);
   const dropRef = useRef<HTMLDivElement>(null);
+  const seenNotificationIds = useRef(new Set<number>());
+  const socketNotifications = useRef(new Map<number, Notification>());
+  const hasLoadedNotifications = useRef(false);
 
   // Close on outside click
   useEffect(() => {
@@ -54,29 +66,44 @@ const NotificationDropdown = () => {
   // Join personal socket room + listen for live notifications
   useEffect(() => {
     if (!isAuthenticated || !user || !notificationsEnabled) return;
-    socket.emit("join_user", user.id);
+    joinUser(user.id);
 
     const h = (n: Notification) => {
-      setNotifications(prev => [n, ...prev]);
+      if (seenNotificationIds.current.has(n.id)) return;
+      seenNotificationIds.current.add(n.id);
+      socketNotifications.current.set(n.id, n);
+      setNotifications(prev => [n, ...prev].slice(0, 30));
       setUnread(c => c + 1);
+      setLiveNotice(n);
     };
     socket.on("notification", h);
 
     return () => {
-      socket.emit("leave_user", user.id);
+      leaveUser(user.id);
       socket.off("notification", h);
     };
-  }, [isAuthenticated, user, socket, notificationsEnabled]);
+  }, [isAuthenticated, user, socket, joinUser, leaveUser, notificationsEnabled]);
+
+  useEffect(() => {
+    if (!liveNotice) return;
+    const timer = window.setTimeout(() => setLiveNotice(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [liveNotice]);
 
   // Load on first open
   const handleOpen = async () => {
     setOpen(v => !v);
-    if (!open && notifications.length === 0) {
+    if (!open && !hasLoadedNotifications.current) {
       setLoading(true);
       try {
         const { notifications: data, unread_count } = await notificationService.getAll();
-        setNotifications(data);
-        setUnread(unread_count);
+        const merged = new Map(data.map(n => [n.id, n]));
+        socketNotifications.current.forEach((n, id) => merged.set(id, n));
+        const combined = [...merged.values()].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 30);
+        combined.forEach(n => seenNotificationIds.current.add(n.id));
+        setNotifications(combined);
+        setUnread(Math.max(unread_count, combined.filter(n => !n.is_read).length));
+        hasLoadedNotifications.current = true;
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     }
@@ -110,6 +137,18 @@ const NotificationDropdown = () => {
 
   return (
     <div className="relative" ref={dropRef}>
+      {liveNotice && (
+        <div role="status" className="fixed right-4 top-20 z-[90] w-[min(22rem,calc(100vw-2rem))] rounded-2xl p-3 shadow-2xl"
+          style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)" }}>
+          <button type="button" onClick={() => void handleClick(liveNotice)} className="w-full text-left">
+            <span className="block text-xs font-semibold" style={{ color: typeColor(liveNotice.type) }}>{typeLabel[liveNotice.type]}</span>
+            <span className="mt-1 block text-sm" style={{ color: "var(--text)" }}>{liveNotice.message}</span>
+            <span className="mt-1 block text-xs" style={{ color: "var(--muted)" }}>Tap to view</span>
+          </button>
+          <button type="button" onClick={() => setLiveNotice(null)} aria-label="Dismiss notification"
+            className="absolute right-2 top-2 rounded p-1 text-xs hover:bg-[var(--surface2)]" style={{ color: "var(--muted)" }}>×</button>
+        </div>
+      )}
       {/* Bell button */}
       <button
         onClick={handleOpen}

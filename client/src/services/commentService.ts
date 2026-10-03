@@ -2,6 +2,14 @@ import api from "../api/client";
 import type { Comment } from "../types/index";
 
 export const commentService = {
+  async voteComment(id: number, vote: 1 | -1): Promise<{ vote_score: number; user_vote: 1 | -1 | 0 }> {
+    const { data } = await api.post<{ success: boolean; vote_score: number; user_vote: 1 | -1 | 0 }>(
+      `/comments/${id}/vote`,
+      { vote }
+    );
+    return data;
+  },
+
   async getCommentsByPost(postId: number): Promise<Comment[]> {
     const { data } = await api.get<{ success: boolean; comments: Comment[] }>(
       `/comments/post/${postId}`

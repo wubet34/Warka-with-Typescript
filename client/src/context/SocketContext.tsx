@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { io, Socket } from "socket.io-client";
 
 const SOCKET_URL = (import.meta.env.VITE_API_URL as string)
@@ -12,32 +12,67 @@ interface SocketContextType {
   leaveFeed: () => void;
   joinCommunity: (communityId: number) => void;
   leaveCommunity: (communityId: number) => void;
+  joinUser: (userId: number) => void;
+  leaveUser: (userId: number) => void;
 }
 
 const SocketContext = createContext<SocketContextType | null>(null);
 
 export const SocketProvider = ({ children }: { children: ReactNode }) => {
-  const socketRef = useRef<Socket>(
-    io(SOCKET_URL, { autoConnect: true, transports: ["websocket", "polling"] })
-  );
+  const socketRef = useRef<Socket | null>(null);
+  if (!socketRef.current) {
+    socketRef.current = io(SOCKET_URL, { autoConnect: true, transports: ["websocket", "polling"] });
+  }
+  const socket = socketRef.current;
+  const activeRooms = useRef(new Map<string, { joinEvent: string; leaveEvent: string; id?: number }>());
+
+  const joinRoom = useCallback((joinEvent: string, leaveEvent: string, id?: number) => {
+    const key = id === undefined ? joinEvent : `${joinEvent}:${id}`;
+    activeRooms.current.set(key, { joinEvent, leaveEvent, id });
+    if (id === undefined) socket.emit(joinEvent);
+    else socket.emit(joinEvent, id);
+  }, [socket]);
+
+  const leaveRoom = useCallback((joinEvent: string, id?: number) => {
+    const key = id === undefined ? joinEvent : `${joinEvent}:${id}`;
+    const room = activeRooms.current.get(key);
+    if (!room) return;
+    activeRooms.current.delete(key);
+    if (room.id === undefined) socket.emit(room.leaveEvent);
+    else socket.emit(room.leaveEvent, room.id);
+  }, [socket]);
 
   useEffect(() => {
-    const s = socketRef.current;
-    return () => { s.disconnect(); };
-  }, []);
+    const rejoinRooms = () => {
+      activeRooms.current.forEach(room => {
+        if (room.id === undefined) socket.emit(room.joinEvent);
+        else socket.emit(room.joinEvent, room.id);
+      });
+    };
+    socket.on("connect", rejoinRooms);
+    // React Strict Mode runs effect cleanup/setup again in development. Since
+    // disconnect() disables Socket.IO's automatic reconnect, reconnect here.
+    if (!socket.connected) socket.connect();
+    return () => {
+      socket.off("connect", rejoinRooms);
+      socket.disconnect();
+    };
+  }, [socket]);
 
-  const socket = socketRef.current;
+  const joinPost = useCallback((id: number) => joinRoom("join_post", "leave_post", id), [joinRoom]);
+  const leavePost = useCallback((id: number) => leaveRoom("join_post", id), [leaveRoom]);
+  const joinFeed = useCallback(() => joinRoom("join_feed", "leave_feed"), [joinRoom]);
+  const leaveFeed = useCallback(() => leaveRoom("join_feed"), [leaveRoom]);
+  const joinCommunity = useCallback((id: number) => joinRoom("join_community", "leave_community", id), [joinRoom]);
+  const leaveCommunity = useCallback((id: number) => leaveRoom("join_community", id), [leaveRoom]);
+  const joinUser = useCallback((id: number) => joinRoom("join_user", "leave_user", id), [joinRoom]);
+  const leaveUser = useCallback((id: number) => leaveRoom("join_user", id), [leaveRoom]);
+  const contextValue = useMemo(() => ({
+    socket, joinPost, leavePost, joinFeed, leaveFeed, joinCommunity, leaveCommunity, joinUser, leaveUser,
+  }), [socket, joinPost, leavePost, joinFeed, leaveFeed, joinCommunity, leaveCommunity, joinUser, leaveUser]);
 
   return (
-    <SocketContext.Provider value={{
-      socket,
-      joinPost:        (id) => socket.emit("join_post", id),
-      leavePost:       (id) => socket.emit("leave_post", id),
-      joinFeed:        ()   => socket.emit("join_feed"),
-      leaveFeed:       ()   => socket.emit("leave_feed"),
-      joinCommunity:   (id) => socket.emit("join_community", id),
-      leaveCommunity:  (id) => socket.emit("leave_community", id),
-    }}>
+    <SocketContext.Provider value={contextValue}>
       {children}
     </SocketContext.Provider>
   );

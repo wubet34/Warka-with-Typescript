@@ -71,15 +71,15 @@ const UserProfile = () => {
             <div className="-mt-9 mb-3 flex items-end justify-between sm:-mt-10">
               {/* Avatar */}
               {avatarSrc
-                ? <img src={avatarSrc} className="h-[4.5rem] w-[4.5rem] rounded-full border-4 object-cover sm:h-20 sm:w-20" style={{ borderColor: "var(--surface)" }} alt={`${profile.username}'s avatar`} />
-                : <div className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full border-4 text-2xl font-bold sm:h-20 sm:w-20 sm:text-3xl"
+                ? <img src={avatarSrc} className="h-18 w-18 rounded-full border-4 object-cover sm:h-20 sm:w-20" style={{ borderColor: "var(--surface)" }} alt={`${profile.username}'s avatar`} />
+                : <div className="flex h-18 w-18 items-center justify-center rounded-full border-4 text-2xl font-bold sm:h-20 sm:w-20 sm:text-3xl"
                     style={{ borderColor: "var(--surface)", backgroundColor: "var(--accent)" }}>
                     {profile.username[0].toUpperCase()}
                   </div>}
 
               {isOwn && (
                 <button onClick={() => setShowEdit(true)}
-                  className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface2)]"
+                  className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors hover:bg-(--surface2)"
                   style={{ border: "1px solid var(--border)", color: "var(--text)" }}>
                   <Pencil size={13} /> Edit Profile
                 </button>
@@ -117,7 +117,7 @@ const UserProfile = () => {
                 <div className="flex flex-wrap gap-2">
                   {profile.joined_communities.map(community => (
                     <NavLink key={community.id} to={`/w/${community.slug}`}
-                      className="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-[var(--surface2)]"
+                      className="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-(--surface2)"
                       style={{ borderColor: "var(--border)", color: "var(--text)" }}>w/{community.name}</NavLink>
                   ))}
                 </div>
@@ -131,7 +131,7 @@ const UserProfile = () => {
                 <div className="flex flex-wrap gap-2">
                   {profile.created_communities.map(community => (
                     <NavLink key={community.id} to={`/w/${community.slug}`}
-                      className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-[var(--surface2)]"
+                      className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-(--surface2)"
                       style={{ borderColor: "var(--border)", color: "var(--text)" }}><Plus size={12} />w/{community.name}</NavLink>
                   ))}
                 </div>

@@ -81,3 +81,7 @@ export const emitVoteUpdate = (postId: number, voteScore: number) => {
   getIO().to(`post:${postId}`).emit("vote_update", { postId, voteScore });
   getIO().to("feed").emit("vote_update", { postId, voteScore });
 };
+
+export const emitCommentVoteUpdate = (postId: number, commentId: number, voteScore: number) => {
+  getIO().to(`post:${postId}`).emit("comment_vote_update", { postId, commentId, voteScore });
+}

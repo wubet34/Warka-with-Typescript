@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import pool from "../config/db.js";
 import { AuthRequest } from "../middleware/authMiddleware.js";
 import { emitNewPost } from "../socket.js";
+import { notify } from "../utils/notify.js";
 
 export const createPost = async (req: Request, res: Response): Promise<void> => {
   const client = await pool.connect();
@@ -76,6 +77,24 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
 
     // Broadcast new post to feed and community rooms
     emitNewPost(result.rows[0] as Record<string, unknown>);
+
+    // Persist and emit a notification for each member of the community.
+    try {
+      const members = await pool.query(
+        "SELECT user_id FROM community_members WHERE community_id = $1 AND user_id <> $2",
+        [community_id, user_id]
+      );
+      const actorUsername = (req as AuthRequest).user.username;
+      await Promise.all(members.rows.map(member => notify({
+        userId: Number(member.user_id),
+        actorId: Number(user_id),
+        type: "new_post",
+        message: `${actorUsername} posted in w/${result.rows[0].community_name}`,
+        postId: Number(result.rows[0].id),
+      })));
+    } catch (notificationError) {
+      console.error("Failed to notify community members about a new post:", notificationError);
+    }
 
     res.status(201).json({
       success: true,

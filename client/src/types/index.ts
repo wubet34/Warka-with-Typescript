@@ -32,6 +32,8 @@ export interface Comment {
   username: string;
   profile_image?: string;
   parent_comment_id?: number;
+  vote_score?: number;
+  user_vote?: 1 | -1 | 0;
   created_at: string;
   updated_at: string;
 }

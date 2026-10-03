@@ -43,3 +43,19 @@ export const authenticate = (
     });
   }
 };
+
+export const authenticateOptional = (
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): void => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (token) {
+    try {
+      (req as AuthRequest).user = jwt.verify(token, process.env.JWT_SECRET as string) as AuthUser;
+    } catch {
+      // Public comment reads remain available when a saved token has expired.
+    }
+  }
+  next();
+};

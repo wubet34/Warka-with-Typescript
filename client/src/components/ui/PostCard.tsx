@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { ChevronUp, ChevronDown, MessageCircle, Share2, MoreHorizontal, X, ZoomIn, ZoomOut, RotateCcw, Pencil, Trash2 } from "lucide-react";
+import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, MoreHorizontal, X, ZoomIn, ZoomOut, RotateCcw, Pencil, Trash2 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import Login from "../Login";
 import type { Post } from "../../types/index";
@@ -165,17 +165,19 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
         {/* Vote column */}
         <div className="flex flex-col items-center px-2 sm:px-3 py-4 gap-1 shrink-0"
           style={{ backgroundColor: "var(--surface2)" }}>
-          <button onClick={() => handleVote(1)} className="p-1 rounded transition-colors"
+          <button type="button" onClick={() => handleVote(1)} aria-label="Upvote post" aria-pressed={upActive}
+            className="rounded-full p-1 transition-colors hover:bg-[var(--surface)]"
             style={{ color: upActive ? "var(--accent)" : "var(--muted)" }}>
-            <ChevronUp size={18} />
+            <ArrowBigUp size={19} fill={upActive ? "currentColor" : "none"} />
           </button>
-          <span className="text-xs font-bold"
+          <span className="min-w-4 text-center text-xs font-semibold tabular-nums"
             style={{ color: voteScore > 0 ? "var(--accent)" : voteScore < 0 ? "#f85149" : "var(--muted)" }}>
             {voteScore}
           </span>
-          <button onClick={() => handleVote(-1)} className="p-1 rounded transition-colors"
+          <button type="button" onClick={() => handleVote(-1)} aria-label="Downvote post" aria-pressed={downActive}
+            className="rounded-full p-1 transition-colors hover:bg-[var(--surface)]"
             style={{ color: downActive ? "#f85149" : "var(--muted)" }}>
-            <ChevronDown size={18} />
+            <ArrowBigDown size={19} fill={downActive ? "currentColor" : "none"} />
           </button>
         </div>
 
@@ -198,22 +200,22 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
             {user?.id === post.user_id && onDelete && (
               <div className="relative shrink-0" ref={menuRef}>
                 <button type="button" onClick={() => setMenuOpen(open => !open)} aria-label="Post options" aria-expanded={menuOpen}
-                  className="rounded-lg p-1 hover:bg-[var(--surface2)] transition-colors" style={{ color: "var(--muted)" }}>
+                  className="rounded-lg p-1 hover:bg-(--surface2) transition-colors" style={{ color: "var(--muted)" }}>
                   <MoreHorizontal size={18} />
                 </button>
                 {menuOpen && (
                   <div className="absolute right-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-xl py-1 shadow-xl"
                     style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)" }}>
                     <button type="button" onClick={() => { setEditTitle(displayTitle); setEditContent(displayContent); setEditError(""); setEditOpen(true); setMenuOpen(false); }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--surface2)]" style={{ color: "var(--text)" }}>
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-(--surface2)" style={{ color: "var(--text)" }}>
                       <Pencil size={15} /> Edit
                     </button>
                     <button type="button" onClick={handleShare}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--surface2)]" style={{ color: "var(--text)" }}>
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-(--surface2)" style={{ color: "var(--text)" }}>
                       <Share2 size={15} /> Share
                     </button>
                     <button type="button" onClick={confirmDelete}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-500 hover:bg-[var(--surface2)]">
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-500 hover:bg-(--surface2)">
                       <Trash2 size={15} /> Delete
                     </button>
                   </div>
@@ -264,11 +266,11 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
           {/* Actions */}
           <div className="flex items-center gap-4">
             <button onClick={() => setCommentsOpen(v => !v)}
-              className="flex items-center gap-1.5 text-xs transition-colors hover:text-[var(--accent)]"
+              className="flex items-center gap-1.5 text-xs transition-colors hover:text-(--accent)"
               style={{ color: "var(--muted)" }}>
               <MessageCircle size={15} /> {commentCount} Comments
             </button>
-            <button onClick={handleShare} className="flex items-center gap-1.5 text-xs transition-colors hover:text-[var(--accent)]"
+            <button onClick={handleShare} className="flex items-center gap-1.5 text-xs transition-colors hover:text-(--accent)"
               style={{ color: "var(--muted)" }}>
               <Share2 size={15} /> Share
             </button>
@@ -281,7 +283,7 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
       )}
 
       {shareOpen && createPortal(
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 backdrop-blur-[2px]"
+        <div className="fixed inset-0 z-120 flex items-center justify-center bg-black/60 p-4 backdrop-blur-[2px]"
           role="presentation" onClick={() => setShareOpen(false)}>
           <section role="dialog" aria-modal="true" aria-labelledby={`share-title-${post.id}`}
             className="w-full max-w-md rounded-2xl p-5 shadow-2xl"
@@ -290,7 +292,7 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
             <header className="mb-4 flex items-center justify-between">
               <h2 id={`share-title-${post.id}`} className="text-lg font-bold">Share post</h2>
               <button type="button" onClick={() => setShareOpen(false)} aria-label="Close share dialog"
-                className="rounded-full p-2 hover:bg-[var(--surface2)]"><X size={18} /></button>
+                className="rounded-full p-2 hover:bg-(--surface2)"><X size={18} /></button>
             </header>
             <p className="mb-4 truncate text-sm" style={{ color: "var(--muted)" }}>{displayTitle}</p>
             <div className="grid grid-cols-2 gap-2">
@@ -299,7 +301,7 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
                   window.open(href, "_blank", "noopener,noreferrer");
                   setShareOpen(false);
                 }}
-                  className="rounded-xl border px-4 py-3 text-center text-sm font-semibold transition-colors hover:bg-[var(--surface2)]"
+                  className="rounded-xl border px-4 py-3 text-center text-sm font-semibold transition-colors hover:bg-(--surface2)"
                   style={{ color: "var(--text)", borderColor: "var(--border)" }}>{name}</button>
               ))}
               {canNativeShare && <button type="button" onClick={handleNativeShare}
@@ -313,7 +315,7 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
       )}
 
       {deleteOpen && createPortal(
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 backdrop-blur-[2px]"
+        <div className="fixed inset-0 z-120 flex items-center justify-center bg-black/60 p-4 backdrop-blur-[2px]"
           role="presentation" onClick={() => { if (!deleteBusy) setDeleteOpen(false); }}>
           <section role="alertdialog" aria-modal="true" aria-labelledby={`delete-title-${post.id}`}
             className="w-full max-w-sm rounded-2xl p-5 shadow-2xl"
@@ -337,7 +339,7 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
 
       {imageOpen && post.image && createPortal(
         <div
-          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 p-3 sm:p-6"
+          className="fixed inset-0 z-100 flex flex-col items-center justify-center bg-black/95 p-3 sm:p-6"
           role="dialog"
           aria-modal="true"
           aria-label="Image viewer"
@@ -370,7 +372,7 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
       )}
 
       {editOpen && createPortal(
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-4" onClick={() => setEditOpen(false)}>
+        <div className="fixed inset-0 z-110 flex items-center justify-center bg-black/70 p-4" onClick={() => setEditOpen(false)}>
           <form onSubmit={handleEditSubmit} onClick={event => event.stopPropagation()}
             className="w-full max-w-lg space-y-3 rounded-2xl p-5 shadow-2xl"
             style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)" }}>
