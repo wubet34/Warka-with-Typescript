@@ -10,6 +10,7 @@ import { imgUrl } from "../../utils/imageUrl";
 import NotificationDropdown from "../ui/NotificationDropdown";
 import CreateCommunityModal from "../ui/CreateCommunityModal";
 import SearchSuggestions from "../ui/SearchSuggestions";
+import warkaLogo from "../../assets/warka-logo-web.png";
 
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -134,8 +135,7 @@ const Navbar = () => {
               <Menu size={24} />
             </button>
             <NavLink to="/home" className="flex items-center gap-2 text-xl sm:text-2xl font-bold" style={{ color:"var(--accent)" }}>
-              <img src="/warka-icon.png" alt="" className="h-8 w-8 rounded-lg object-cover" />
-              <span className="hidden sm:inline">Warka</span>
+              <img src={warkaLogo} alt="Warka — Where Ethiopia Connects" className="h-11 w-11 rounded-xl bg-white object-contain p-0.5" />
             </NavLink>
           </div>
 
@@ -267,8 +267,7 @@ const Navbar = () => {
         style={{ backgroundColor:"var(--surface)" }}>
         <div className="flex items-center justify-between px-4 py-4" style={{ borderBottom:"1px solid var(--border)" }}>
           <NavLink to="/home" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 text-xl font-bold" style={{ color:"var(--accent)" }}>
-            <img src="/warka-icon.png" alt="" className="h-8 w-8 rounded-lg object-cover" />
-            <span>Warka</span>
+            <img src={warkaLogo} alt="Warka — Where Ethiopia Connects" className="h-12 w-12 rounded-xl bg-white object-contain p-0.5" />
           </NavLink>
           <button onClick={() => setMenuOpen(false)} className="p-2 rounded-lg hover:bg-[var(--surface2)]" style={{ color:"var(--muted)" }}><X size={22} /></button>
         </div>
