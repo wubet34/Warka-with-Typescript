@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { ChevronUp, ChevronDown, MessageCircle, Share2, MoreHorizontal, X, ZoomIn, ZoomOut, RotateCcw, Pencil, Trash2 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -35,6 +35,7 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
   const [deleteError, setDeleteError] = useState("");
   const [shareError, setShareError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editTitle, setEditTitle] = useState(post.title);
   const [editContent, setEditContent] = useState(post.content ?? "");
@@ -45,15 +46,25 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
   const [loginMessage, setLoginMessage] = useState("");
 
   useEffect(() => {
-    if (!imageOpen && !shareOpen && !deleteOpen) return;
+    if (!imageOpen && !shareOpen && !deleteOpen && !menuOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
       if (event.key === "Escape") setImageOpen(false);
       if (event.key === "Escape") setShareOpen(false);
       if (event.key === "Escape" && !deleteBusy) setDeleteOpen(false);
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [imageOpen, shareOpen, deleteOpen, deleteBusy]);
+  }, [imageOpen, shareOpen, deleteOpen, deleteBusy, menuOpen]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    return () => document.removeEventListener("pointerdown", closeOnOutsideClick);
+  }, [menuOpen]);
 
   const openImage = () => {
     setImageZoom(1);
@@ -185,7 +196,7 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
               <span>{formatDate(post.created_at)}</span>
             </div>
             {user?.id === post.user_id && onDelete && (
-              <div className="relative shrink-0">
+              <div className="relative shrink-0" ref={menuRef}>
                 <button type="button" onClick={() => setMenuOpen(open => !open)} aria-label="Post options" aria-expanded={menuOpen}
                   className="rounded-lg p-1 hover:bg-[var(--surface2)] transition-colors" style={{ color: "var(--muted)" }}>
                   <MoreHorizontal size={18} />
