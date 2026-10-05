@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, Users } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { communityService } from "../../services/communityService";
 
@@ -27,7 +28,7 @@ const CreateCommunityModal = ({ onClose }: Props) => {
     } finally { setLoading(false); }
   };
 
-  return (
+  return createPortal((
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ backgroundColor:"rgba(0,0,0,0.6)" }}>
       <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl shadow-2xl" style={{ backgroundColor:"var(--surface)", border:"1px solid var(--border)" }}>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom:"1px solid var(--border)" }}>
@@ -71,6 +72,6 @@ const CreateCommunityModal = ({ onClose }: Props) => {
         </form>
       </div>
     </div>
-  );
+  ), document.body);
 };
 export default CreateCommunityModal;

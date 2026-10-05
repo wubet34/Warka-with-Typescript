@@ -34,6 +34,7 @@ const UserProfile = () => {
   const [error, setError]       = useState("");
   const [showEdit, setShowEdit] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followsYou, setFollowsYou] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [followError, setFollowError] = useState("");
 
@@ -44,8 +45,8 @@ const UserProfile = () => {
       api.get<{ success: boolean; user: ProfileUser }>(`/users/${id}`).then(r => r.data.user),
       api.get<{ success: boolean; posts: Post[] }>(`/users/${id}/posts`).then(r => r.data.posts),
     ]).then(([u, p]) => {
-      setProfile(u); setPosts(p); setIsFollowing(false);
-      if (isAuthenticated && me?.id !== u.id) followService.state("users", u.id).then(setIsFollowing).catch(() => setFollowError("Could not load follow status. Check your connection and retry."));
+      setProfile(u); setPosts(p); setIsFollowing(false); setFollowsYou(false);
+      if (isAuthenticated && me?.id !== u.id) followService.relationship("users", u.id).then(({ isFollowing: follows, followsYou: followsMe }) => { setIsFollowing(follows); setFollowsYou(followsMe); }).catch(() => setFollowError("Could not load follow status. Check your connection and retry."));
     })
       .catch(() => setError("User not found."))
       .finally(() => setLoading(false));
@@ -114,7 +115,7 @@ const UserProfile = () => {
                 <button type="button" disabled={followBusy} onClick={() => void toggleFollow()}
                   className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors hover:bg-(--surface2) disabled:opacity-50"
                   style={isFollowing ? { border: "1px solid var(--border)", color: "var(--text)" } : { backgroundColor: "var(--accent)", color: "#fff" }}>
-                  {isFollowing ? <><UserRoundCheck size={14} /> Following</> : <><UserRoundPlus size={14} /> Follow</>}
+                  {isFollowing ? <><UserRoundCheck size={14} /> Following</> : <><UserRoundPlus size={14} /> {followsYou ? "Follow back" : "Follow"}</>}
                 </button>
               </div>}
             </div>

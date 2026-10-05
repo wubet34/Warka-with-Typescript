@@ -50,10 +50,15 @@ export const getFollowState = async (req: Request, res: Response): Promise<void>
   const userId = (req as AuthRequest).user.id;
   if (!Number.isSafeInteger(targetId) || targetId < 1) { res.status(400).json({ success: false, message: "Invalid id." }); return; }
   try {
-    const result = routeParam(req, "type") === "users"
-      ? await pool.query("SELECT 1 FROM user_follows WHERE follower_id = $1 AND followed_id = $2", [userId, targetId])
-      : await pool.query("SELECT 1 FROM community_follows WHERE user_id = $1 AND community_id = $2", [userId, targetId]);
-    res.json({ success: true, isFollowing: result.rows.length > 0 });
+    const isUser = routeParam(req, "type") === "users";
+    const result = isUser
+      ? await pool.query(
+          `SELECT EXISTS(SELECT 1 FROM user_follows WHERE follower_id = $1 AND followed_id = $2) AS is_following,
+                  EXISTS(SELECT 1 FROM user_follows WHERE follower_id = $2 AND followed_id = $1) AS follows_you`,
+          [userId, targetId]
+        )
+      : await pool.query("SELECT EXISTS(SELECT 1 FROM community_follows WHERE user_id = $1 AND community_id = $2) AS is_following, FALSE AS follows_you", [userId, targetId]);
+    res.json({ success: true, isFollowing: result.rows[0].is_following, followsYou: result.rows[0].follows_you });
   } catch (error) {
     console.error(error);
     const unavailable = isDatabaseUnavailable(error);
