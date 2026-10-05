@@ -9,10 +9,22 @@ const FollowingPage = () => {
   const [communities, setCommunities] = useState<FollowedCommunity[]>([]);
   const [tags, setTags] = useState<FollowedTag[]>([]);
   const [error, setError] = useState("");
-  useEffect(() => { followService.getFollowing().then(data => { setUsers(data.users); setCommunities(data.communities); setTags(data.tags); }).catch(() => setError("Could not load your following list.")); }, []);
+  const [loading, setLoading] = useState(true);
+  const load = () => {
+    setLoading(true); setError("");
+    followService.getFollowing()
+      .then(data => { setUsers(data.users); setCommunities(data.communities); setTags(data.tags); })
+      .catch((err: unknown) => {
+        const response = (err as { response?: { status?: number; data?: { message?: string } }; message?: string }).response;
+        setError(response?.data?.message || (!response ? "Could not reach the server. Check your connection and try again." : response.status === 401 ? "Sign in to view the people and communities you follow." : "Could not load your following list. Check the database connection and retry."));
+      })
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, []);
   return <section className="mx-auto max-w-3xl space-y-5">
     <header><h1 className="text-2xl font-bold" style={{ color: "var(--text)" }}>Following</h1><p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>People and communities you follow.</p></header>
-    {error && <p role="alert" className="rounded-xl p-4 text-sm text-red-500" style={{ backgroundColor: "var(--surface)" }}>{error}</p>}
+    {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl p-4 text-sm text-red-500" style={{ backgroundColor: "var(--surface)" }}><span>{error}</span><button type="button" onClick={load} disabled={loading} className="rounded-lg border px-3 py-1.5 font-semibold disabled:opacity-50" style={{ borderColor: "var(--border)" }}>{loading ? "Retrying…" : "Retry"}</button></div>}
+    {loading && <p className="text-sm" style={{ color: "var(--muted)" }}>Loading your following list…</p>}
     <section className="rounded-2xl p-4" style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)" }}>
       <h2 className="mb-3 flex items-center gap-2 font-semibold" style={{ color: "var(--text)" }}><UserRound size={17} /> People</h2>
       {users.length ? users.map(person => <NavLink key={person.id} to={`/user/${person.id}`} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-[var(--surface2)]" style={{ color: "var(--text)" }}><span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-white" style={{ backgroundColor: "var(--accent)" }}>{person.username[0]?.toUpperCase()}</span>u/{person.username}</NavLink>) : <p className="text-sm" style={{ color: "var(--muted)" }}>You are not following anyone yet.</p>}

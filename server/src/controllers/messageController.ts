@@ -4,6 +4,7 @@ import { AuthRequest } from "../middleware/authMiddleware.js";
 import { notify } from "../utils/notify.js";
 import { storeImage } from "../utils/media.js";
 import { emitDirectMessage } from "../socket.js";
+import { isDatabaseUnavailable } from "../utils/dbErrors.js";
 
 const ids = (req: Request) => ({ me: (req as AuthRequest).user.id, other: Number(req.params.userId) });
 
@@ -28,7 +29,7 @@ export const getConversations = async (req: Request, res: Response): Promise<voi
        ORDER BY last.created_at DESC`, [me]
     );
     res.json({ success: true, conversations: result.rows });
-  } catch (error) { console.error(error); res.status(500).json({ success: false, message: "Could not load conversations." }); }
+  } catch (error) { console.error(error); const unavailable = isDatabaseUnavailable(error); res.status(unavailable ? 503 : 500).json({ success: false, message: unavailable ? "The database connection timed out. Check the server's database network access and retry." : "Could not load conversations." }); }
 };
 
 export const getThread = async (req: Request, res: Response): Promise<void> => {
@@ -44,7 +45,7 @@ export const getThread = async (req: Request, res: Response): Promise<void> => {
     );
     const blocked = await pool.query("SELECT 1 FROM blocked_users WHERE (blocker_id = $1 AND blocked_id = $2) OR (blocker_id = $2 AND blocked_id = $1)", [me, other]);
     res.json({ success: true, messages: result.rows, blocked: blocked.rows.length > 0 });
-  } catch (error) { console.error(error); res.status(500).json({ success: false, message: "Could not load messages." }); }
+  } catch (error) { console.error(error); const unavailable = isDatabaseUnavailable(error); res.status(unavailable ? 503 : 500).json({ success: false, message: unavailable ? "The database connection timed out. Check the server's database network access and retry." : "Could not load messages." }); }
 };
 
 export const sendMessage = async (req: Request, res: Response): Promise<void> => {

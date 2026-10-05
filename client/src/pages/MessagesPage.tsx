@@ -5,9 +5,11 @@ import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import { messageService, type Conversation, type DirectMessage } from "../services/messageService";
 import { imgUrl } from "../utils/imageUrl";
+import { useWarkaDialog } from "../context/WarkaDialogContext";
 
 const MessagesPage = () => {
   const { user } = useAuth();
+  const warkaDialog = useWarkaDialog();
   const { socket, joinInbox, leaveInbox } = useSocket();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeId = Number(searchParams.get("user")) || 0;
@@ -21,11 +23,18 @@ const MessagesPage = () => {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [conversationsError, setConversationsError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const active = conversations.find(conversation => conversation.user_id === activeId);
   const activeUsername = active?.username ?? targetUser?.username;
   const activeAvatar = active?.profile_image ?? targetUser?.profile_image;
-  const loadConversations = () => messageService.list().then(setConversations).catch(() => setError("Could not load your conversations."));
+  const loadConversations = () => {
+    setConversationsError("");
+    return messageService.list().then(setConversations).catch((err: unknown) => {
+      const response = (err as { response?: { status?: number; data?: { message?: string } } }).response;
+      setConversationsError(response?.data?.message || (!response ? "Could not reach the server. Check your connection and try again." : response.status === 401 ? "Sign in again to load your conversations." : "The server could not load your conversations. Check the database connection and retry."));
+    });
+  };
 
   useEffect(() => { void loadConversations().finally(() => setLoading(false)); }, []);
   useEffect(() => {
@@ -72,7 +81,7 @@ const MessagesPage = () => {
     catch { setError("Could not update block settings."); }
   };
   const hide = async () => {
-    if (!activeId || !window.confirm("Delete this conversation from your inbox?")) return;
+    if (!activeId || !await warkaDialog.confirm("Delete this conversation from your inbox?", "Delete conversation", "Delete")) return;
     try { await messageService.hide(activeId); setConversations(current => current.filter(conversation => conversation.user_id !== activeId)); setSearchParams({}); setMessages([]); }
     catch { setError("Could not delete this conversation."); }
   };
@@ -81,8 +90,9 @@ const MessagesPage = () => {
     <aside className={`${activeId ? "hidden sm:flex" : "flex"} w-full shrink-0 flex-col sm:w-72`} style={{ borderRight: "1px solid var(--border)" }}>
       <h1 className="border-b px-4 py-4 text-lg font-bold" style={{ color: "var(--text)", borderColor: "var(--border)" }}>Messages</h1>
       <div className="flex-1 overflow-y-auto">
+        {conversationsError && <div role="alert" className="m-3 rounded-xl p-3 text-sm text-red-500" style={{ backgroundColor: "var(--surface2)" }}><p>{conversationsError}</p><button type="button" onClick={() => { setLoading(true); void loadConversations().finally(() => setLoading(false)); }} disabled={loading} className="mt-2 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-50" style={{ borderColor: "var(--border)" }}>{loading ? "Retrying…" : "Retry"}</button></div>}
         {loading && <p className="p-4 text-sm" style={{ color: "var(--muted)" }}>Loading…</p>}
-        {!loading && conversations.length === 0 && <p className="p-4 text-sm" style={{ color: "var(--muted)" }}>No messages yet. Visit a profile to start a conversation.</p>}
+        {!loading && !conversationsError && conversations.length === 0 && <p className="p-4 text-sm" style={{ color: "var(--muted)" }}>No messages yet. Visit a profile to start a conversation.</p>}
         {conversations.map(conversation => <button key={conversation.user_id} type="button" onClick={() => setSearchParams({ user: String(conversation.user_id) })} className="flex w-full items-center gap-3 border-b px-4 py-3 text-left hover:bg-[var(--surface2)]" style={{ borderColor: "var(--border)", backgroundColor: activeId === conversation.user_id ? "var(--surface2)" : undefined }}>
           {conversation.profile_image ? <img src={imgUrl(conversation.profile_image)} className="h-9 w-9 shrink-0 rounded-full object-cover" alt="" /> : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ backgroundColor: "var(--accent)" }}>{conversation.username[0]?.toUpperCase()}</span>}
           <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold" style={{ color: "var(--text)" }}>u/{conversation.username}</span><span className="block truncate text-xs" style={{ color: "var(--muted)" }}>{conversation.last_message}</span></span>

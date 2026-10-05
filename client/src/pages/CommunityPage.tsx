@@ -11,10 +11,12 @@ import RealtimePostNotice from "../components/ui/RealtimePostNotice";
 import api from "../api/client";
 import { CommunityPageSkeleton } from "../components/ui/LoadingSkeleton";
 import { followService } from "../services/followService";
+import { useWarkaDialog } from "../context/WarkaDialogContext";
 
 const CommunityPage = () => {
   const { communitySlug } = useParams<{ communitySlug: string }>();
   const { isAuthenticated, user } = useAuth();
+  const warkaDialog = useWarkaDialog();
   const { socket, joinCommunity, leaveCommunity } = useSocket();
   const [community, setCommunity] = useState<Community | null>(null);
   const [posts, setPosts]         = useState<Post[]>([]);
@@ -25,6 +27,7 @@ const CommunityPage = () => {
   const [joining, setJoining]     = useState(false);
   const [following, setFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
+  const [followError, setFollowError] = useState("");
   const [canModerate, setCanModerate] = useState(false);
   const [livePostNotice, setLivePostNotice] = useState<Post | null>(null);
   const knownPostIds = useRef(new Set<number>());
@@ -102,9 +105,14 @@ const CommunityPage = () => {
   const handleFollow = async () => {
     if (!community) return;
     const next = !following;
+    setFollowError("");
     setFollowing(next); setFollowBusy(true);
     try { await followService.set("communities", community.id, next); }
-    catch { setFollowing(!next); }
+    catch (err) {
+      setFollowing(!next);
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setFollowError(message || "Could not update follow status. Check your connection and try again.");
+    }
     finally { setFollowBusy(false); }
   };
 
@@ -128,7 +136,7 @@ const CommunityPage = () => {
     const url = `${window.location.origin}/w/${community?.slug}`;
     try {
       if (navigator.share) await navigator.share({ title: `w/${community?.name}`, url });
-      else { await navigator.clipboard.writeText(url); window.alert("Community link copied."); }
+      else { await navigator.clipboard.writeText(url); await warkaDialog.alert("Community link copied.", "Link copied"); }
     } catch (error) { if ((error as DOMException).name !== "AbortError") console.error(error); }
   };
 
@@ -142,6 +150,7 @@ const CommunityPage = () => {
   return (
     <div className="space-y-4">
       {livePostNotice && <RealtimePostNotice post={livePostNotice} onClose={() => setLivePostNotice(null)} />}
+      {followError && <p role="alert" className="rounded-xl p-3 text-sm text-red-500" style={{ backgroundColor: "var(--surface)" }}>{followError}</p>}
       {moderationError && <p role="alert" className="rounded-xl p-3 text-sm text-red-500" style={{ backgroundColor: "var(--surface)" }}>{moderationError}</p>}
       {/* Community header */}
       <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)" }}>
@@ -204,7 +213,7 @@ const CommunityPage = () => {
             {canModerate && <div className="flex justify-end gap-2">
               <button type="button" onClick={() => void handleModeration(post, post.is_pinned ? "unpin" : "pin")} className="rounded-lg px-2.5 py-1 text-xs" style={{ color: "var(--muted)", backgroundColor: "var(--surface)" }}>{post.is_pinned ? "Unpin" : "Pin"}</button>
               <button type="button" onClick={() => void handleModeration(post, post.is_locked ? "unlock" : "lock")} className="rounded-lg px-2.5 py-1 text-xs" style={{ color: "var(--muted)", backgroundColor: "var(--surface)" }}>{post.is_locked ? "Unlock" : "Lock"}</button>
-              <button type="button" onClick={() => { if (window.confirm("Remove this post from the community?")) void handleModeration(post, "remove"); }} className="rounded-lg px-2.5 py-1 text-xs text-red-500" style={{ backgroundColor: "var(--surface)" }}>Remove</button>
+              <button type="button" onClick={async () => { if (await warkaDialog.confirm("Remove this post from the community?", "Remove post", "Remove")) void handleModeration(post, "remove"); }} className="rounded-lg px-2.5 py-1 text-xs text-red-500" style={{ backgroundColor: "var(--surface)" }}>Remove</button>
             </div>}
             <PostCard post={post}
               onDelete={async id => { try { await api.delete(`/posts/${id}`); setPosts(p => p.filter(x => x.id !== id)); } catch (e) { console.error(e); } }} />

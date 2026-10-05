@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CalendarDays, Users } from "lucide-react";
 import api from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { useWarkaDialog } from "../context/WarkaDialogContext";
 
 interface Stats {
   total_users: number;
@@ -18,6 +19,7 @@ interface Report {
 
 const AdminDashboard = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const warkaDialog = useWarkaDialog();
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState("");
   const [reports, setReports] = useState<Report[]>([]);
@@ -101,7 +103,7 @@ const AdminDashboard = () => {
           <div className="mt-4 flex flex-wrap justify-end gap-2">
             <button onClick={() => void reviewReport(report.id, "dismiss")} className="rounded-lg border px-3 py-1.5 text-xs font-medium" style={{ borderColor: "var(--border)", color: "var(--text)" }}>Dismiss</button>
             <button onClick={() => void reviewReport(report.id, "resolve")} className="rounded-lg border px-3 py-1.5 text-xs font-medium" style={{ borderColor: "var(--border)", color: "var(--text)" }}>Resolve</button>
-            <button onClick={() => { if (window.confirm("Permanently remove this reported content?")) void reviewReport(report.id, "remove"); }} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white">Remove content</button>
+            <button onClick={async () => { if (await warkaDialog.confirm("Permanently remove this reported content?", "Remove reported content", "Remove")) void reviewReport(report.id, "remove"); }} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white">Remove content</button>
           </div>
         </article>)}
       </section>}

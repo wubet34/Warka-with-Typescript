@@ -14,6 +14,7 @@ import { postService } from "../../services/postService";
 import { bookmarkService } from "../../services/bookmarkService";
 import { reportService } from "../../services/reportService";
 import PollWidget from "./PollWidget";
+import { useWarkaDialog } from "../../context/WarkaDialogContext";
 
 interface Props {
   post: Post;
@@ -25,6 +26,7 @@ interface Props {
 
 const PostCard = ({ post, onDelete, onBookmarkChange, showComments: initOpen = false, showFullContent = false }: Props) => {
   const { user, isAuthenticated } = useAuth();
+  const warkaDialog = useWarkaDialog();
   const { socket } = useSocket();
   const navigate = useNavigate();
   const [voteScore, setVoteScore]     = useState(Number(post.vote_score));
@@ -195,10 +197,10 @@ const PostCard = ({ post, onDelete, onBookmarkChange, showComments: initOpen = f
 
   const handleReport = async () => {
     if (!isAuthenticated) { setLoginMessage("Sign in to report a post."); return; }
-    const reason = window.prompt("Why are you reporting this post?");
+    const reason = await warkaDialog.prompt("Why are you reporting this post?", "Report post", "Describe the reason");
     if (!reason?.trim()) return;
-    try { await reportService.reportPost(post.id, reason.trim()); window.alert("Thanks. Your report was sent to moderators."); }
-    catch { window.alert("Could not submit the report. Please try again."); }
+    try { await reportService.reportPost(post.id, reason.trim()); await warkaDialog.alert("Thanks. Your report was sent to moderators.", "Report submitted"); }
+    catch { await warkaDialog.alert("Could not submit the report. Please try again.", "Report failed"); }
   };
 
   const upActive   = userVote === 1;
@@ -322,7 +324,7 @@ const PostCard = ({ post, onDelete, onBookmarkChange, showComments: initOpen = f
             <button onClick={() => setCommentsOpen(v => !v)}
               className="flex items-center gap-1.5 text-xs transition-colors hover:text-(--accent)"
               style={{ color: "var(--muted)" }}>
-              <MessageCircle size={15} /> {commentCount} Comments
+              <MessageCircle size={15} aria-hidden="true" /> <span>{commentCount}</span>
             </button>
             <button onClick={handleShare} className="flex items-center gap-1.5 text-xs transition-colors hover:text-(--accent)"
               style={{ color: "var(--muted)" }}>

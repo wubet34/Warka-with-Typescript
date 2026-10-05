@@ -7,6 +7,7 @@ import { AuthProvider } from './context/AuthContext.tsx'
 import { SocketProvider } from './context/SocketContext.tsx'
 import { ThemeProvider } from './context/ThemeContext.tsx'
 import { SettingsProvider } from './context/SettingsContext.tsx'
+import { WarkaDialogProvider } from './context/WarkaDialogContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -15,7 +16,9 @@ createRoot(document.getElementById('root')!).render(
         <SettingsProvider>
           <AuthProvider>
             <SocketProvider>
-              <App />
+              <WarkaDialogProvider>
+                <App />
+              </WarkaDialogProvider>
             </SocketProvider>
           </AuthProvider>
         </SettingsProvider>

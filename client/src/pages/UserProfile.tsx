@@ -35,6 +35,7 @@ const UserProfile = () => {
   const [showEdit, setShowEdit] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
+  const [followError, setFollowError] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -44,7 +45,7 @@ const UserProfile = () => {
       api.get<{ success: boolean; posts: Post[] }>(`/users/${id}/posts`).then(r => r.data.posts),
     ]).then(([u, p]) => {
       setProfile(u); setPosts(p); setIsFollowing(false);
-      if (isAuthenticated && me?.id !== u.id) followService.state("users", u.id).then(setIsFollowing).catch(() => {});
+      if (isAuthenticated && me?.id !== u.id) followService.state("users", u.id).then(setIsFollowing).catch(() => setFollowError("Could not load follow status. Check your connection and retry."));
     })
       .catch(() => setError("User not found."))
       .finally(() => setLoading(false));
@@ -63,15 +64,22 @@ const UserProfile = () => {
 
   const toggleFollow = async () => {
     const next = !isFollowing;
+    setFollowError("");
     setIsFollowing(next); setFollowBusy(true);
     setProfile(current => current ? { ...current, follower_count: Number(current.follower_count ?? 0) + (next ? 1 : -1) } : current);
     try { await followService.set("users", profile.id, next); }
-    catch { setIsFollowing(!next); setProfile(current => current ? { ...current, follower_count: Number(current.follower_count ?? 0) + (next ? -1 : 1) } : current); }
+    catch (err) {
+      setIsFollowing(!next);
+      setProfile(current => current ? { ...current, follower_count: Number(current.follower_count ?? 0) + (next ? -1 : 1) } : current);
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setFollowError(message || "Could not update follow status. Check your connection and try again.");
+    }
     finally { setFollowBusy(false); }
   };
 
   return (
     <>
+      {followError && <p role="alert" className="mb-3 rounded-xl p-3 text-sm text-red-500" style={{ backgroundColor: "var(--surface)" }}>{followError}</p>}
       {showEdit && (
         <EditProfileModal user={profile} onClose={() => setShowEdit(false)}
           onSaved={u => setProfile(p => p ? { ...p, ...u } : null)} />

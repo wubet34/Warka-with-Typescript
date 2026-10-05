@@ -7,6 +7,7 @@ import { reportService } from "../../services/reportService";
 import { useAuth } from "../../context/AuthContext";
 import Login from "../Login";
 import { formatDate } from "../../utils/formatDate";
+import { useWarkaDialog } from "../../context/WarkaDialogContext";
 
 export interface CommentNode extends Comment { children: CommentNode[]; }
 
@@ -36,6 +37,7 @@ interface Props {
 
 const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded, onVoteChanged, readOnly = false }: Props) => {
   const { user, isAuthenticated } = useAuth();
+  const warkaDialog = useWarkaDialog();
   const [collapsed, setCollapsed]   = useState(false);
   const [showReply, setShowReply]   = useState(false);
   const [replyText, setReplyText]   = useState("");
@@ -69,10 +71,10 @@ const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded, onVoteCha
 
   const handleReport = async () => {
     if (!isAuthenticated) { setLoginMessage("Sign in to report a comment."); return; }
-    const reason = window.prompt("Why are you reporting this comment?");
+    const reason = await warkaDialog.prompt("Why are you reporting this comment?", "Report comment", "Describe the reason");
     if (!reason?.trim()) return;
-    try { await reportService.reportComment(comment.id, reason.trim()); window.alert("Thanks. Your report was sent to moderators."); }
-    catch { window.alert("Could not submit the report. Please try again."); }
+    try { await reportService.reportComment(comment.id, reason.trim()); await warkaDialog.alert("Thanks. Your report was sent to moderators.", "Report submitted"); }
+    catch { await warkaDialog.alert("Could not submit the report. Please try again.", "Report failed"); }
   };
 
   const handleReply = async (e: React.FormEvent) => {
