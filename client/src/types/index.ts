@@ -63,7 +63,6 @@ export interface Community {
   member_count: number;
   post_count: number;
   is_private: boolean;
-  owner_id?: number;
   created_at: string;
 }
 

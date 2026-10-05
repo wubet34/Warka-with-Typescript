@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ArrowLeft, Ban, ImagePlus, MessageCircle, Send, Trash2, X } from "lucide-react";
 import { useAuth } from "../context/AuthContext";

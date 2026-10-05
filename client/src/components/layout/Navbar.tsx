@@ -3,8 +3,7 @@ import { Flame, Home, LogIn, Search, Sparkles, UserPlus, Menu, X, User, Users, S
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
-import { searchService } from "../../services/searchService";
-import type { Post, User as UserType, Community } from "../../types/index";
+import { searchService, type SearchResults } from "../../services/searchService";
 import Login from "../Login";
 import { imgUrl } from "../../utils/imageUrl";
 import NotificationDropdown from "../ui/NotificationDropdown";
@@ -20,7 +19,7 @@ const Navbar = () => {
   const [showCreateCommunity, setShowCreateCommunity] = useState(false);
   const [loginMode, setLoginMode]     = useState<"login"|"register">("login");
   const [q, setQ]                     = useState("");
-  const [liveResults, setLiveResults] = useState<{ posts: Post[]; users: UserType[]; communities: Community[] } | null>(null);
+  const [liveResults, setLiveResults] = useState<SearchResults | null>(null);
   const [searching, setSearching]     = useState(false);
   const [showDrop, setShowDrop]       = useState(false);
   const location = useLocation();
@@ -60,7 +59,7 @@ const Navbar = () => {
     } catch (e) {
       if (requestId === searchRequestRef.current) {
         console.error(e);
-        setLiveResults({ posts: [], users: [], communities: [] });
+        setLiveResults({ posts: [], users: [], communities: [], comments: [] });
         setShowDrop(true);
       }
     } finally {
