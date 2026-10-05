@@ -3,6 +3,10 @@ export interface User {
   username: string;
   email: string;
   bio?: string;
+  country?: string;
+  city?: string;
+  website?: string;
+  social_links?: Record<string, string>;
   profile_image?: string;
   cover_image?: string;
   is_verified?: boolean;
@@ -16,6 +20,13 @@ export interface Post {
   image?: string;
   link?: string;
   vote_score: number;
+  user_vote?: 1 | -1 | 0;
+  user_bookmarked?: boolean;
+  post_type?: "question" | "discussion" | "news" | "tutorial" | "resource" | "poll" | "announcement";
+  tags?: string[];
+  views?: number;
+  is_locked?: boolean;
+  is_pinned?: boolean;
   created_at: string;
   user_id: number;
   username: string;
@@ -43,6 +54,10 @@ export interface Community {
   name: string;
   slug: string;
   description?: string;
+  rules?: string;
+  tags?: string[];
+  wiki?: string;
+  owner_id?: number;
   logo?: string;
   banner?: string;
   member_count: number;

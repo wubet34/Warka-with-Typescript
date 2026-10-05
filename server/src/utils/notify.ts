@@ -4,7 +4,7 @@ import { getIO } from "../socket.js";
 interface NotifyOptions {
   userId: number;       // recipient
   actorId?: number;     // who triggered it
-  type: "comment" | "reply" | "vote" | "mention" | "new_post";
+  type: "comment" | "reply" | "vote" | "mention" | "new_post" | "follow" | "message";
   message: string;
   postId?: number;
   commentId?: number;

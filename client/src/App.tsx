@@ -12,6 +12,9 @@ import Sidebar from './components/layout/Sidebar'
 import RightSidebar from './pages/RightSidebar'
 import SettingsPage from './pages/SettingsPage'
 import AdminDashboard from './pages/AdminDashboard'
+import BookmarksPage from './pages/BookmarksPage'
+import FollowingPage from './pages/FollowingPage'
+import MessagesPage from './pages/MessagesPage'
 
 function App() {
   const isSearchPage = useLocation().pathname === '/search'
@@ -40,6 +43,9 @@ function App() {
               <Route path="/create"           element={<CreatePostPage />} />
               <Route path="/search"           element={<SearchPage />} />
               <Route path="/settings"         element={<SettingsPage />} />
+              <Route path="/bookmarks"       element={<BookmarksPage />} />
+              <Route path="/following"       element={<FollowingPage />} />
+              <Route path="/messages"        element={<MessagesPage />} />
               <Route path="/admin"            element={<AdminDashboard />} />
               <Route path="/w/:communitySlug" element={<CommunityPage />} />
               <Route path="/post/:id"         element={<PostDetail />} />

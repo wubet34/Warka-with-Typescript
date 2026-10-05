@@ -26,6 +26,8 @@ export const communityService = {
   async createCommunity(payload: {
     name: string;
     description?: string;
+    rules?: string;
+    tags?: string[];
   }): Promise<Community> {
     const { data } = await api.post<{ success: boolean; community: Community }>(
       "/communities",
@@ -47,5 +49,22 @@ export const communityService = {
 
   async leaveCommunity(id: number): Promise<void> {
     await api.delete(`/communities/${id}/leave`);
+  },
+
+  async canModerate(id: number): Promise<boolean> {
+    const { data } = await api.get<{ success: boolean; canModerate: boolean }>(`/communities/${id}/moderation`);
+    return data.canModerate;
+  },
+
+  async moderatePost(communityId: number, postId: number, action: "lock" | "unlock" | "pin" | "unpin" | "remove"): Promise<void> {
+    await api.post(`/communities/${communityId}/posts/${postId}/moderation`, { action });
+  },
+
+  async setModerator(communityId: number, userId: number): Promise<void> {
+    await api.post(`/communities/${communityId}/moderators`, { user_id: userId });
+  },
+
+  async removeModerator(communityId: number, userId: number): Promise<void> {
+    await api.delete(`/communities/${communityId}/moderators`, { data: { user_id: userId } });
   },
 };

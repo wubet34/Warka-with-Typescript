@@ -28,6 +28,10 @@ export const initSocket = (httpServer: HttpServer): SocketServer => {
       socket.leave(`user:${userId}`);
     });
 
+    // A separate inbox room keeps realtime messages independent of notification settings.
+    socket.on("join_inbox", (userId: number) => socket.join(`inbox:${userId}`));
+    socket.on("leave_inbox", (userId: number) => socket.leave(`inbox:${userId}`));
+
     // Join a post room to receive live comments/votes for that post
     socket.on("join_post", (postId: number) => {
       socket.join(`post:${postId}`);
@@ -85,3 +89,7 @@ export const emitVoteUpdate = (postId: number, voteScore: number) => {
 export const emitCommentVoteUpdate = (postId: number, commentId: number, voteScore: number) => {
   getIO().to(`post:${postId}`).emit("comment_vote_update", { postId, commentId, voteScore });
 }
+
+export const emitDirectMessage = (userIds: number[], message: Record<string, unknown>) => {
+  for (const userId of userIds) getIO().to(`inbox:${userId}`).emit("direct_message", message);
+};

@@ -24,11 +24,16 @@ export const createComment = async (req: Request, res: Response): Promise<void> 
 
     await client.query("BEGIN");
 
-    const post = await client.query("SELECT id FROM posts WHERE id = $1", [post_id]);
+    const post = await client.query("SELECT id, is_locked FROM posts WHERE id = $1", [post_id]);
 
     if (post.rows.length === 0) {
       await client.query("ROLLBACK");
       res.status(404).json({ success: false, message: "Post not found." });
+      return;
+    }
+    if (post.rows[0].is_locked) {
+      await client.query("ROLLBACK");
+      res.status(423).json({ success: false, message: "Comments are locked for this post." });
       return;
     }
 
@@ -85,6 +90,20 @@ export const createComment = async (req: Request, res: Response): Promise<void> 
         });
       }
     }
+
+    // Notify each mentioned user once, excluding the author.
+    try {
+      const mentioned = [...new Set(Array.from(content.matchAll(/@([a-zA-Z0-9_]{1,30})/g), match => match[1].toLowerCase()))]
+        .filter(username => username !== (req as AuthRequest).user.username.toLowerCase());
+      if (mentioned.length) {
+        const mentionedUsers = await pool.query("SELECT id, username FROM users WHERE LOWER(username) = ANY($1::text[])", [mentioned]);
+        const actorUsername = (req as AuthRequest).user.username;
+        await Promise.all(mentionedUsers.rows.map(mentionedUser => notify({
+          userId: Number(mentionedUser.id), actorId: Number(user_id), type: "mention",
+          message: `${actorUsername} mentioned you in a comment`, postId: post_id, commentId: result.rows[0].id,
+        })));
+      }
+    } catch (mentionError) { console.error("Failed to send mention notifications:", mentionError); }
 
     res.status(201).json({
       success: true,

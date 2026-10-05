@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Users, Plus } from "lucide-react";
+import { Bookmark, UserRound, Users, Plus } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { communityService } from "../../services/communityService";
 import type { Community } from "../../types/index";
@@ -20,6 +20,12 @@ const Sidebar = () => {
     <>
       {showCreate && <CreateCommunityModal onClose={() => { setShowCreate(false); refresh(); }} />}
       <div className="space-y-3 py-2">
+        {isAuthenticated && <NavLink to="/bookmarks" className="flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition-colors hover:bg-[var(--surface2)]" style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
+          <Bookmark size={16} style={{ color: "var(--accent)" }} /> Saved posts
+        </NavLink>}
+        {isAuthenticated && <NavLink to="/following" className="flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition-colors hover:bg-[var(--surface2)]" style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>
+          <UserRound size={16} style={{ color: "var(--accent)" }} /> Following
+        </NavLink>}
         {/* Profile card */}
         <div className="rounded-2xl overflow-hidden" style={{ backgroundColor:"var(--surface)", border:"1px solid var(--border)" }}>
           {user?.cover_image

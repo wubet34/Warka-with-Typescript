@@ -1,6 +1,6 @@
 export interface Notification {
   id: number;
-  type: "comment" | "reply" | "vote" | "mention" | "new_post";
+  type: "comment" | "reply" | "vote" | "mention" | "new_post" | "follow" | "message";
   message: string;
   is_read: boolean;
   created_at: string;

@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { CornerDownRight, Trash2, Send, ChevronDown, ArrowBigDown, ArrowBigUp } from "lucide-react";
+import { CornerDownRight, Trash2, Send, ChevronDown, ArrowBigDown, ArrowBigUp, Flag } from "lucide-react";
 import type { Comment } from "../../types/index";
 import { commentService } from "../../services/commentService";
+import { reportService } from "../../services/reportService";
 import { useAuth } from "../../context/AuthContext";
 import Login from "../Login";
 import { formatDate } from "../../utils/formatDate";
@@ -30,9 +31,10 @@ interface Props {
   onDelete: (id: number) => void;
   onReplyAdded: (c: Comment) => void;
   onVoteChanged: (id: number, voteScore: number, userVote?: 1 | -1 | 0) => void;
+  readOnly?: boolean;
 }
 
-const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded, onVoteChanged }: Props) => {
+const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded, onVoteChanged, readOnly = false }: Props) => {
   const { user, isAuthenticated } = useAuth();
   const [collapsed, setCollapsed]   = useState(false);
   const [showReply, setShowReply]   = useState(false);
@@ -50,14 +52,27 @@ const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded, onVoteCha
     }
     if (voting) return;
     setVoting(true);
+    const previousScore = voteScore;
+    const previousVote = userVote;
+    const nextVote = userVote === vote ? 0 : vote;
+    onVoteChanged(comment.id, voteScore + nextVote - userVote, nextVote);
     try {
       const result = await commentService.voteComment(comment.id, vote);
       onVoteChanged(comment.id, result.vote_score, result.user_vote);
     } catch (error) {
       console.error(error);
+      onVoteChanged(comment.id, previousScore, previousVote);
     } finally {
       setVoting(false);
     }
+  };
+
+  const handleReport = async () => {
+    if (!isAuthenticated) { setLoginMessage("Sign in to report a comment."); return; }
+    const reason = window.prompt("Why are you reporting this comment?");
+    if (!reason?.trim()) return;
+    try { await reportService.reportComment(comment.id, reason.trim()); window.alert("Thanks. Your report was sent to moderators."); }
+    catch { window.alert("Could not submit the report. Please try again."); }
   };
 
   const handleReply = async (e: React.FormEvent) => {
@@ -124,22 +139,25 @@ const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded, onVoteCha
                   <ArrowBigDown size={17} fill={userVote === -1 ? "currentColor" : "none"} />
                 </button>
               </div>
-              <button onClick={() => isAuthenticated
+              {!readOnly && <button onClick={() => isAuthenticated
                 ? setShowReply(!showReply)
                 : setLoginMessage("Sign in or create an account to reply.")}
                 className="flex items-center gap-1.5 text-sm font-medium hover:text-[var(--accent)] transition-colors" style={{ color: "var(--muted)" }}>
                 <CornerDownRight size={14} /> Reply
-              </button>
+              </button>}
               {user?.id === comment.user_id && (
                 <button onClick={() => onDelete(comment.id)}
                   className="flex items-center gap-1 text-xs hover:text-red-500 transition-colors" style={{ color: "var(--border)" }}>
                   <Trash2 size={11} /> Delete
                 </button>
               )}
+              <button onClick={() => void handleReport()} className="flex items-center gap-1 text-xs hover:text-[var(--accent)] transition-colors" style={{ color: "var(--muted)" }}>
+                <Flag size={11} /> Report
+              </button>
             </div>
           )}
 
-          {showReply && !collapsed && isAuthenticated && (
+          {showReply && !collapsed && isAuthenticated && !readOnly && (
             <form onSubmit={handleReply} className="mt-2 flex items-center gap-2">
               <div className="flex-1 flex items-center rounded-full px-3 py-1.5 gap-1" style={{ backgroundColor: "var(--input-bg)" }}>
                 <input autoFocus type="text" placeholder={`Reply to ${comment.username}...`}
@@ -159,7 +177,7 @@ const CommentItem = ({ comment, postId, depth, onDelete, onReplyAdded, onVoteCha
       </div>
 
       {!collapsed && comment.children.map(child => (
-        <CommentItem key={child.id} comment={child} postId={postId}
+              <CommentItem key={child.id} comment={child} postId={postId} readOnly={readOnly}
           depth={depth + 1} onDelete={onDelete} onReplyAdded={onReplyAdded} onVoteChanged={onVoteChanged} />
       ))}
     </div>

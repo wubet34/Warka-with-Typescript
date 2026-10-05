@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Flame, Home, LogIn, Search, Sparkles, UserPlus, Menu, X, User, Users, Settings, LogOut, ChevronDown, PlusCircle, Sun, Moon } from "lucide-react";
+import { Flame, Home, LogIn, Search, Sparkles, UserPlus, Menu, X, User, Users, Settings, LogOut, ChevronDown, PlusCircle, Sun, Moon, MessageCircle } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -105,8 +105,9 @@ const Navbar = () => {
   const goToResult = (path: string) => { setShowDrop(false); setQ(""); navigate(path); };
 
   const avatarSrc = imgUrl(user?.profile_image);
+  // Public default matches the server allowlist; deployments can override it.
   const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.trim().toLowerCase() || "wubet453@gmail.com";
-  const isAdmin = !!user && user.email.toLowerCase() === adminEmail;
+  const isAdmin = !!user && !!adminEmail && user.email.toLowerCase() === adminEmail;
 
   /* ── style helpers ── */
   const navLink = ({ isActive }: { isActive: boolean }) =>
@@ -174,17 +175,8 @@ const Navbar = () => {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <NavLink to="/settings" aria-label="Settings" title="Settings" className="p-2 rounded-full hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--muted)" }}>
-                <Settings size={18} />
-              </NavLink>
-              {/* Theme toggle */}
-              <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--muted)" }} title="Toggle theme">
-                {isDark ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
-
               {isAuthenticated ? (
                 <>
-                  <NotificationDropdown />
                   <div className="relative" ref={profileRef}>
                     <button onClick={() => setProfileOpen(!profileOpen)}
                       className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-[var(--surface2)] transition-all"
@@ -207,6 +199,10 @@ const Navbar = () => {
                           <NavLink to={`/user/${user?.id}`} onClick={() => setProfileOpen(false)}
                             className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
                             <User size={15} style={{ color:"var(--muted)" }} /> Profile
+                          </NavLink>
+                          <NavLink to="/messages" onClick={() => setProfileOpen(false)}
+                            className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
+                            <MessageCircle size={15} style={{ color:"var(--muted)" }} /> Messages
                           </NavLink>
                           {isAdmin && <NavLink to="/admin" onClick={() => setProfileOpen(false)}
                             className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
@@ -252,9 +248,6 @@ const Navbar = () => {
 
           {/* Mobile right */}
           <div className="lg:hidden flex items-center gap-1 shrink-0">
-            <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-[var(--surface2)]" style={{ color:"var(--muted)" }}>
-              {isDark ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
             {isAuthenticated
               ? <NotificationDropdown />
               : <button onClick={() => openLogin("login")} className="p-2 rounded-full hover:bg-[var(--surface2)]" style={{ color:"var(--muted)" }}><LogIn size={22} /></button>}
@@ -317,10 +310,6 @@ const Navbar = () => {
           </div>
 
           <div style={{ borderTop:"1px solid var(--border)" }} className="pt-3">
-            <button onClick={toggleTheme} className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
-              {isDark ? <Sun size={18} style={{ color:"var(--muted)" }} /> : <Moon size={18} style={{ color:"var(--muted)" }} />}
-              {isDark ? "Light Mode" : "Dark Mode"}
-            </button>
             <NavLink to="/settings" onClick={() => setMenuOpen(false)}
               className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
               <Settings size={18} style={{ color:"var(--muted)" }} /> Settings
@@ -329,6 +318,10 @@ const Navbar = () => {
 
           {isAuthenticated && (
             <div className="flex flex-col gap-1" style={{ borderTop:"1px solid var(--border)" }}>
+              <NavLink to="/messages" onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm rounded-xl hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
+                <MessageCircle size={18} style={{ color:"var(--muted)" }} /> Messages
+              </NavLink>
               <NavLink to={`/user/${user?.id}`} onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-3 px-4 py-3 text-sm rounded-xl hover:bg-[var(--surface2)] transition-colors" style={{ color:"var(--text)" }}>
                 <User size={18} style={{ color:"var(--muted)" }} /> My Profile

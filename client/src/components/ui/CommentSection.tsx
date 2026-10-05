@@ -8,9 +8,9 @@ import { useSocket } from "../../context/SocketContext";
 import CommentItem, { buildTree } from "./CommentItem";
 import { RowSkeleton } from "./LoadingSkeleton";
 
-interface Props { postId: number; initialCount: number; onCountChange?: (n: number) => void; }
+interface Props { postId: number; initialCount: number; onCountChange?: (n: number) => void; locked?: boolean; }
 
-const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
+const CommentSection = ({ postId, initialCount, onCountChange, locked = false }: Props) => {
   const { user, isAuthenticated } = useAuth();
   const { socket, joinPost, leavePost } = useSocket();
   const [flat, setFlat]         = useState<Comment[]>([]);
@@ -85,7 +85,7 @@ const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
       setLoginMessage("Sign in or create an account to comment.");
       return;
     }
-    if (!text.trim()) return;
+    if (locked || !text.trim()) return;
     setSubmitting(true);
     try {
       const c = await commentService.createComment({ content: text.trim(), post_id: postId });
@@ -114,7 +114,8 @@ const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
   return (
     <div style={{ borderTop: "1px solid var(--border)" }}>
       {loginMessage && <Login onClose={() => setLoginMessage("")} message={loginMessage} />}
-      {isAuthenticated && (
+      {locked && <p className="px-4 py-3 text-xs" style={{ color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>This post is locked. New comments are disabled.</p>}
+      {!locked && isAuthenticated && (
         <div className="px-3 sm:px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
           <form onSubmit={handleSubmit} className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
@@ -133,7 +134,7 @@ const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
           </form>
         </div>
       )}
-      {!isAuthenticated && (
+      {!locked && !isAuthenticated && (
         <div className="px-3 py-3 sm:px-4" style={{ borderBottom: "1px solid var(--border)" }}>
           <button type="button" onClick={() => setLoginMessage("Sign in or create an account to comment.")}
             className="w-full rounded-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-[var(--surface2)]"
@@ -151,7 +152,7 @@ const CommentSection = ({ postId, initialCount, onCountChange }: Props) => {
         ) : (
           <div className="space-y-1">
             {tree.map(node => (
-              <CommentItem key={node.id} comment={node} postId={postId}
+              <CommentItem key={node.id} comment={node} postId={postId} readOnly={locked}
                 depth={0} onDelete={handleDelete} onReplyAdded={handleReplyAdded} onVoteChanged={updateCommentVote} />
             ))}
           </div>

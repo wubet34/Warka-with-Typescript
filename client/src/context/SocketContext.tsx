@@ -12,6 +12,8 @@ interface SocketContextType {
   leaveCommunity: (communityId: number) => void;
   joinUser: (userId: number) => void;
   leaveUser: (userId: number) => void;
+  joinInbox: (userId: number) => void;
+  leaveInbox: (userId: number) => void;
 }
 
 const SocketContext = createContext<SocketContextType | null>(null);
@@ -65,9 +67,11 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
   const leaveCommunity = useCallback((id: number) => leaveRoom("join_community", id), [leaveRoom]);
   const joinUser = useCallback((id: number) => joinRoom("join_user", "leave_user", id), [joinRoom]);
   const leaveUser = useCallback((id: number) => leaveRoom("join_user", id), [leaveRoom]);
+  const joinInbox = useCallback((id: number) => joinRoom("join_inbox", "leave_inbox", id), [joinRoom]);
+  const leaveInbox = useCallback((id: number) => leaveRoom("join_inbox", id), [leaveRoom]);
   const contextValue = useMemo(() => ({
-    socket, joinPost, leavePost, joinFeed, leaveFeed, joinCommunity, leaveCommunity, joinUser, leaveUser,
-  }), [socket, joinPost, leavePost, joinFeed, leaveFeed, joinCommunity, leaveCommunity, joinUser, leaveUser]);
+    socket, joinPost, leavePost, joinFeed, leaveFeed, joinCommunity, leaveCommunity, joinUser, leaveUser, joinInbox, leaveInbox,
+  }), [socket, joinPost, leavePost, joinFeed, leaveFeed, joinCommunity, leaveCommunity, joinUser, leaveUser, joinInbox, leaveInbox]);
 
   return (
     <SocketContext.Provider value={contextValue}>

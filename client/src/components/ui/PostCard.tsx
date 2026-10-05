@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, MoreHorizontal, X, ZoomIn, ZoomOut, RotateCcw, Pencil, Trash2 } from "lucide-react";
+import { ArrowBigUp, ArrowBigDown, Bookmark, Eye, Flag, LockKeyhole, MessageCircle, Pin, Share2, MoreHorizontal, X, ZoomIn, ZoomOut, RotateCcw, Pencil, Trash2 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import Login from "../Login";
 import type { Post } from "../../types/index";
@@ -11,20 +11,27 @@ import { formatDate } from "../../utils/formatDate";
 import { imgUrl } from "../../utils/imageUrl";
 import CommentSection from "./CommentSection";
 import { postService } from "../../services/postService";
+import { bookmarkService } from "../../services/bookmarkService";
+import { reportService } from "../../services/reportService";
+import PollWidget from "./PollWidget";
 
 interface Props {
   post: Post;
   onDelete?: (id: number) => void;
   showComments?: boolean;
   showFullContent?: boolean;
+  onBookmarkChange?: (id: number, bookmarked: boolean) => void;
 }
 
-const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullContent = false }: Props) => {
+const PostCard = ({ post, onDelete, onBookmarkChange, showComments: initOpen = false, showFullContent = false }: Props) => {
   const { user, isAuthenticated } = useAuth();
   const { socket } = useSocket();
   const navigate = useNavigate();
-  const [voteScore, setVoteScore]     = useState(post.vote_score);
-  const [userVote, setUserVote]       = useState<1 | -1 | 0>(0);
+  const [voteScore, setVoteScore]     = useState(Number(post.vote_score));
+  const [userVote, setUserVote]       = useState<1 | -1 | 0>(post.user_vote ?? 0);
+  const [voteBusy, setVoteBusy] = useState(false);
+  const [bookmarked, setBookmarked] = useState(Boolean(post.user_bookmarked));
+  const [bookmarkBusy, setBookmarkBusy] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(initOpen);
   const [commentCount, setCommentCount] = useState(Number(post.comment_count));
   const [imageOpen, setImageOpen] = useState(false);
@@ -143,15 +150,55 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
   }, [post.id, socket]);
 
   const handleVote = async (v: 1 | -1) => {
+    if (voteBusy) return;
     if (!isAuthenticated) {
       setLoginMessage("Sign in or create an account to vote on posts.");
       return;
     }
+    const previousVote = userVote;
+    const previousScore = voteScore;
+    const nextVote = previousVote === v ? 0 : v;
+    setVoteBusy(true);
+    setUserVote(nextVote);
+    setVoteScore(previousScore + nextVote - previousVote);
     try {
       await voteService.vote(post.id, v);
-      if (userVote === v) { setVoteScore(s => s - v); setUserVote(0); }
-      else { setVoteScore(s => s + v - userVote); setUserVote(v); }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      setUserVote(previousVote);
+      setVoteScore(previousScore);
+      console.error(err);
+    } finally {
+      setVoteBusy(false);
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (!isAuthenticated) {
+      setLoginMessage("Sign in or create an account to save posts.");
+      return;
+    }
+    if (bookmarkBusy) return;
+    const next = !bookmarked;
+    setBookmarked(next);
+    setBookmarkBusy(true);
+    try {
+      if (next) await bookmarkService.add(post.id);
+      else await bookmarkService.remove(post.id);
+      onBookmarkChange?.(post.id, next);
+    } catch (error) {
+      setBookmarked(!next);
+      console.error(error);
+    } finally {
+      setBookmarkBusy(false);
+    }
+  };
+
+  const handleReport = async () => {
+    if (!isAuthenticated) { setLoginMessage("Sign in to report a post."); return; }
+    const reason = window.prompt("Why are you reporting this post?");
+    if (!reason?.trim()) return;
+    try { await reportService.reportPost(post.id, reason.trim()); window.alert("Thanks. Your report was sent to moderators."); }
+    catch { window.alert("Could not submit the report. Please try again."); }
   };
 
   const upActive   = userVote === 1;
@@ -165,7 +212,7 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
         {/* Vote column */}
         <div className="flex flex-col items-center px-2 sm:px-3 py-4 gap-1 shrink-0"
           style={{ backgroundColor: "var(--surface2)" }}>
-          <button type="button" onClick={() => handleVote(1)} aria-label="Upvote post" aria-pressed={upActive}
+          <button type="button" disabled={voteBusy} onClick={() => handleVote(1)} aria-label="Upvote post" aria-pressed={upActive}
             className="rounded-full p-1 transition-colors hover:bg-[var(--surface)]"
             style={{ color: upActive ? "var(--accent)" : "var(--muted)" }}>
             <ArrowBigUp size={19} fill={upActive ? "currentColor" : "none"} />
@@ -174,7 +221,7 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
             style={{ color: voteScore > 0 ? "var(--accent)" : voteScore < 0 ? "#f85149" : "var(--muted)" }}>
             {voteScore}
           </span>
-          <button type="button" onClick={() => handleVote(-1)} aria-label="Downvote post" aria-pressed={downActive}
+          <button type="button" disabled={voteBusy} onClick={() => handleVote(-1)} aria-label="Downvote post" aria-pressed={downActive}
             className="rounded-full p-1 transition-colors hover:bg-[var(--surface)]"
             style={{ color: downActive ? "#f85149" : "var(--muted)" }}>
             <ArrowBigDown size={19} fill={downActive ? "currentColor" : "none"} />
@@ -228,12 +275,19 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
           <h3 onClick={() => navigate(`/post/${post.id}`)}
             className="break-words text-sm font-semibold mb-1.5 leading-snug cursor-pointer hover:text-(--accent) transition-colors"
             style={{ color: "var(--text)" }}>
-            {displayTitle}
+          {post.post_type && post.post_type !== "discussion" && <span className="mb-2 mr-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--accent)", backgroundColor: "var(--surface2)" }}>{post.post_type}</span>}
+          {post.is_pinned && <span className="mb-2 mr-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ color: "var(--accent)", backgroundColor: "var(--surface2)" }}><Pin size={11} /> Pinned</span>}
+          {post.is_locked && <span className="mb-2 mr-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ color: "var(--muted)", backgroundColor: "var(--surface2)" }}><LockKeyhole size={11} /> Locked</span>}
+          {displayTitle}
           </h3>
+
+          {!!post.tags?.length && <div className="mb-2 flex flex-wrap gap-1.5">{post.tags.map(tag => <NavLink key={tag} to={`/search?q=${encodeURIComponent(`#${tag}`)}`} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ color: "var(--accent)", backgroundColor: "var(--surface2)" }}>#{tag}</NavLink>)}</div>}
 
           {displayContent && (
             <p className={`text-sm mb-3${showFullContent ? " whitespace-pre-wrap wrap-break-word" : " line-clamp-3"}`} style={{ color: "var(--muted)" }}>{displayContent}</p>
           )}
+
+          {post.post_type === "poll" && <PollWidget postId={post.id} />}
 
           {post.image && (
             <button type="button" onClick={openImage} aria-label={`Open image for ${displayTitle}`}
@@ -274,12 +328,21 @@ const PostCard = ({ post, onDelete, showComments: initOpen = false, showFullCont
               style={{ color: "var(--muted)" }}>
               <Share2 size={15} /> Share
             </button>
+            <button type="button" disabled={bookmarkBusy} onClick={handleBookmark} aria-pressed={bookmarked}
+              className="flex items-center gap-1.5 text-xs transition-colors hover:text-(--accent)"
+              style={{ color: bookmarked ? "var(--accent)" : "var(--muted)" }}>
+              <Bookmark size={15} fill={bookmarked ? "currentColor" : "none"} /> {bookmarked ? "Saved" : "Save"}
+            </button>
+            <button type="button" onClick={handleReport} className="flex items-center gap-1.5 text-xs transition-colors hover:text-(--accent)" style={{ color: "var(--muted)" }}>
+              <Flag size={14} /> Report
+            </button>
+            {!!post.views && <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--muted)" }}><Eye size={14} /> {Number(post.views).toLocaleString()}</span>}
           </div>
         </div>
       </div>
 
       {commentsOpen && (
-        <CommentSection postId={post.id} initialCount={commentCount} onCountChange={setCommentCount} />
+        <CommentSection postId={post.id} initialCount={commentCount} onCountChange={setCommentCount} locked={post.is_locked} />
       )}
 
       {shareOpen && createPortal(

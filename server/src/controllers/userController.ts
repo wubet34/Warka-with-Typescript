@@ -6,13 +6,15 @@ export const getUserProfile = async (req: Request, res: Response): Promise<void>
     const { id } = req.params;
 
     const result = await pool.query(
-      `SELECT u.id, u.username, u.bio, u.profile_image, u.cover_image, u.is_verified, u.created_at,
+      `SELECT u.id, u.username, u.bio, u.country, u.city, u.website, u.social_links, u.profile_image, u.cover_image, u.is_verified, u.created_at,
               COUNT(DISTINCT p.id) AS post_count,
               COUNT(DISTINCT c.id) AS comment_count,
               (SELECT COUNT(*) FROM votes v JOIN posts vp ON vp.id = v.post_id WHERE vp.user_id = u.id) AS votes_received,
               (SELECT COALESCE(SUM(vp.vote_score), 0) FROM posts vp WHERE vp.user_id = u.id) AS karma,
               (SELECT COUNT(*) FROM community_members cm WHERE cm.user_id = u.id) AS joined_community_count,
               (SELECT COUNT(*) FROM communities cc WHERE cc.owner_id = u.id) AS created_community_count,
+              (SELECT COUNT(*) FROM user_follows uf WHERE uf.followed_id = u.id) AS follower_count,
+              (SELECT COUNT(*) FROM user_follows uf WHERE uf.follower_id = u.id) AS following_count,
               COALESCE((
                 SELECT json_agg(json_build_object('id', jc.id, 'name', jc.name, 'slug', jc.slug) ORDER BY jc.name)
                 FROM community_members jcm JOIN communities jc ON jc.id = jcm.community_id
@@ -47,7 +49,7 @@ export const getUserPosts = async (req: Request, res: Response): Promise<void> =
     const { id } = req.params;
 
     const result = await pool.query(
-      `SELECT p.id, p.title, p.content, p.image, p.link, p.vote_score, p.created_at,
+      `SELECT p.id, p.title, p.content, p.image, p.link, p.vote_score, p.post_type, p.tags, p.views, p.is_locked, p.is_pinned, p.created_at,
               u.id AS user_id, u.username,
               c.id AS community_id, c.name AS community_name, c.slug AS community_slug,
               COUNT(DISTINCT com.id) AS comment_count

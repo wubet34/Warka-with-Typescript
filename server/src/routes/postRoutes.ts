@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { authenticate } from "../middleware/authMiddleware.js";
+import { authenticateOptional } from "../middleware/authMiddleware.js";
 import { upload } from "../middleware/upload.js";
 import {
   createPost,
@@ -9,6 +10,8 @@ import {
   deletePost,
   getFeed,
   getPopular,
+  getPostPoll,
+  votePoll,
 } from "../controllers/postController.js";
 
 const router = Router();
@@ -53,10 +56,12 @@ async function withUpload(
 router.post("/", authenticate, (req, res, next) =>
   withUpload(req, res, next, createPost)
 );
-router.get("/", getPosts);
-router.get("/feed", getFeed);
-router.get("/popular", getPopular);
-router.get("/:id", getPostById);
+router.get("/", authenticateOptional, getPosts);
+router.get("/feed", authenticateOptional, getFeed);
+router.get("/popular", authenticateOptional, getPopular);
+router.get("/:id/poll", authenticateOptional, getPostPoll);
+router.post("/:id/poll/vote", authenticate, votePoll);
+router.get("/:id", authenticateOptional, getPostById);
 router.put("/:id", authenticate, (req, res, next) =>
   withUpload(req, res, next, updatePost)
 );

@@ -14,7 +14,10 @@ export const getAdminStats = async (req: Request, res: Response): Promise<void> 
   try {
     const result = await pool.query(
       `SELECT COUNT(*)::INTEGER AS total_users,
-              COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::INTEGER AS new_users_30_days
+              COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::INTEGER AS new_users_30_days,
+              (SELECT COUNT(*)::INTEGER FROM communities) AS total_communities,
+              (SELECT COUNT(*)::INTEGER FROM posts) AS total_posts,
+              (SELECT COUNT(*)::INTEGER FROM content_reports WHERE status = 'pending') AS pending_reports
        FROM users`
     );
     res.status(200).json({ success: true, stats: result.rows[0] });

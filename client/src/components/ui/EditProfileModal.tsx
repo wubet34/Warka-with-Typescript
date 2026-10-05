@@ -11,6 +11,10 @@ const EditProfileModal = ({ user, onClose, onSaved }: Props) => {
   const { updateUser } = useAuth();
   const [username, setUsername]     = useState(user.username);
   const [bio, setBio]               = useState(user.bio ?? "");
+  const [country, setCountry] = useState(user.country ?? "");
+  const [city, setCity] = useState(user.city ?? "");
+  const [website, setWebsite] = useState(user.website ?? "");
+  const [socialLinks, setSocialLinks] = useState<Record<string, string>>(user.social_links ?? {});
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [coverFile,  setCoverFile]  = useState<File | null>(null);
   const [avatarPrev, setAvatarPrev] = useState<string | null>(null);
@@ -51,6 +55,10 @@ const EditProfileModal = ({ user, onClose, onSaved }: Props) => {
       const updated = await authService.updateProfile({
         username: username.trim() === user.username ? undefined : username.trim(),
         bio: bio.trim(),
+        country: country.trim(),
+        city: city.trim(),
+        website: website.trim(),
+        social_links: socialLinks,
         avatar: avatarFile ?? undefined,
         cover: coverFile ?? undefined,
       });
@@ -118,6 +126,14 @@ const EditProfileModal = ({ user, onClose, onSaved }: Props) => {
               <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} maxLength={200} placeholder="Tell people about yourself..."
                 className="w-full px-4 py-2.5 rounded-xl outline-none text-sm resize-none" style={{ backgroundColor:"var(--input-bg)", color:"var(--text)", border:"1px solid var(--border)" }} />
               <p className="text-xs text-right" style={{ color:"var(--muted)" }}>{bio.length}/200</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-sm font-medium" style={{ color:"var(--text)" }}>Country<input value={country} onChange={e => setCountry(e.target.value)} maxLength={100} className="mt-1 w-full rounded-xl px-3 py-2 text-sm font-normal outline-none" style={{ backgroundColor:"var(--input-bg)", color:"var(--text)", border:"1px solid var(--border)" }} /></label>
+              <label className="text-sm font-medium" style={{ color:"var(--text)" }}>City (optional)<input value={city} onChange={e => setCity(e.target.value)} maxLength={100} className="mt-1 w-full rounded-xl px-3 py-2 text-sm font-normal outline-none" style={{ backgroundColor:"var(--input-bg)", color:"var(--text)", border:"1px solid var(--border)" }} /></label>
+            </div>
+            <label className="block text-sm font-medium" style={{ color:"var(--text)" }}>Website<input type="url" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://example.com" className="mt-1 w-full rounded-xl px-3 py-2 text-sm font-normal outline-none" style={{ backgroundColor:"var(--input-bg)", color:"var(--text)", border:"1px solid var(--border)" }} /></label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {["github", "linkedin", "telegram", "instagram"].map(network => <label key={network} className="text-sm font-medium capitalize" style={{ color:"var(--text)" }}>{network}<input type="url" value={socialLinks[network] ?? ""} onChange={e => setSocialLinks(current => ({ ...current, [network]: e.target.value }))} placeholder={`https://${network}.com/…`} className="mt-1 w-full rounded-xl px-3 py-2 text-sm font-normal outline-none" style={{ backgroundColor:"var(--input-bg)", color:"var(--text)", border:"1px solid var(--border)" }} /></label>)}
             </div>
             <p className="text-xs" style={{ color:"var(--muted)" }}>Avatar and cover: JPG, PNG, GIF, or WEBP, up to 5 MB each.</p>
             {error && <p className="text-xs px-3 py-2 rounded-xl" style={{ backgroundColor:"rgba(248,81,73,0.1)", color:"#f85149" }}>{error}</p>}

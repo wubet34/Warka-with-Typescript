@@ -4,10 +4,10 @@
   "description": "Warka backend API",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "npm run migrate && tsx watch src/server.ts",
     "build": "tsc",
     "migrate": "tsx src/db/migrate.ts",
-    "start": "node dist/server.js"
+    "start": "node dist/db/migrate.js && node dist/server.js"
   },
   "keywords": [],
   "author": "",

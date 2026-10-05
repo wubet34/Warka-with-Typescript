@@ -17,7 +17,9 @@ export const votePost = async (req: Request, res: Response): Promise<void> => {
 
     await client.query("BEGIN");
 
-    const post = await client.query("SELECT id, vote_score FROM posts WHERE id = $1", [post_id]);
+    // Serialize votes for this post so simultaneous requests from one account
+    // cannot both observe an empty vote row.
+    const post = await client.query("SELECT id, vote_score FROM posts WHERE id = $1 FOR UPDATE", [post_id]);
     if (post.rows.length === 0) {
       await client.query("ROLLBACK");
       res.status(404).json({ success: false, message: "Post not found." });

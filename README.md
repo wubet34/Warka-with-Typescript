@@ -94,7 +94,7 @@ cd server
 DATABASE_URL="your_neon_connection_string" npm run migrate
 ```
 
-Run this from `server/`. The migration initializes the tables used by the application, including shared image storage and Google account IDs. New post and profile uploads are stored in PostgreSQL so local and deployed app instances can serve the same image URLs.
+Run this from `server/` when you need to apply schema updates manually. The idempotent migration also runs before the dev and production servers start, so older databases are upgraded before API queries use new columns. It initializes and upgrades the application tables, including shared image storage, polls, bookmarks, follows, reports, and direct messages. New post and profile uploads are stored in PostgreSQL so local and deployed app instances can serve the same image URLs.
 
 ---
 
@@ -162,13 +162,19 @@ Run this from `server/`. The migration initializes the tables used by the applic
 - **Google sign-in** — Google Identity Services with server-verified ID tokens
 - **Admin dashboard** — Total registered users and signups in the last 30 days at `/admin`
 - **Posts** — Text, image upload, link posts with preview
+- **Post types and polls** — Questions, discussions, news, tutorials, resources, announcements, tags, and single-choice polls
 - **Feed** — Home (recent), New (all posts), Popular (ranked by votes + comments)
 - **Communities** — Create, join/leave, post directly to community
+- **Community details** — Rules, tags, community following, and share links
 - **Comments** — Nested Reddit-style threads, collapse/expand, reply, delete
 - **Votes** — Upvote/downvote posts with real-time score sync
+- **Bookmarks** — Save posts and view the saved list
+- **Following** — Follow people and communities with notifications
+- **Messaging** — Private conversations, read status, block users, and hide conversations from your inbox
+- **Moderation** — Report posts/comments; admins can resolve, dismiss, or remove reported content
 - **Search** — Live full-text search with instant dropdown (posts, people, communities)
-- **Profiles** — Edit username, bio, avatar, cover image
-- **Notifications** — Real-time bell: comment, reply, upvote notifications
+- **Profiles** — Edit username, bio, avatar, cover, location, website, and social links; follow and message users
+- **Notifications** — Real-time bell for comments, replies, votes, mentions, follows, community posts, and messages
 - **Dark mode** — GitHub dark style, toggle in navbar, persisted to localStorage
 - **Responsive** — Mobile-first with bottom nav, hamburger menu, all screen sizes
 - **Real-time** — Socket.io for live posts, votes, comments, notifications

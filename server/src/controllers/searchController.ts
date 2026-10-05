@@ -11,11 +11,11 @@ export const searchAll = async (req: Request, res: Response): Promise<void> => {
     }
 
     const term = q.trim();
-    const [postsResult, usersResult, communitiesResult] = await Promise.all([
+    const [postsResult, usersResult, communitiesResult, commentsResult] = await Promise.all([
       pool.query(
         `SELECT
            p.id, p.title, p.content, p.image, p.link,
-           p.vote_score, p.comment_count, p.created_at,
+           p.vote_score, p.comment_count, p.created_at, p.post_type, p.tags, p.views, p.is_locked, p.is_pinned,
            u.id   AS user_id,   u.username,
            c.id   AS community_id, c.name AS community_name, c.slug AS community_slug,
            ts_rank(
@@ -30,7 +30,8 @@ export const searchAll = async (req: Request, res: Response): Promise<void> => {
              @@ plainto_tsquery('english', $2)
            OR p.title   ILIKE $1
            OR p.content ILIKE $1
-         ORDER BY rank DESC, p.created_at DESC
+           OR (LEFT($2, 1) = '#' AND p.tags @> ARRAY[LOWER(SUBSTRING($2 FROM 2))])
+       ORDER BY rank DESC, p.created_at DESC
          LIMIT 20`,
         [`%${term}%`, term]
       ),
@@ -48,6 +49,12 @@ export const searchAll = async (req: Request, res: Response): Promise<void> => {
          LIMIT 10`,
         [`%${term}%`]
       ),
+      pool.query(
+        `SELECT cm.id, cm.content, cm.created_at, u.id AS user_id, u.username,
+                p.id AS post_id, p.title AS post_title
+         FROM comments cm JOIN users u ON u.id = cm.user_id JOIN posts p ON p.id = cm.post_id
+         WHERE cm.content ILIKE $1 ORDER BY cm.created_at DESC LIMIT 20`, [`%${term}%`]
+      ),
     ]);
 
     res.json({
@@ -55,6 +62,7 @@ export const searchAll = async (req: Request, res: Response): Promise<void> => {
       posts:       postsResult.rows,
       users:       usersResult.rows,
       communities: communitiesResult.rows,
+      comments: commentsResult.rows,
     });
   } catch (error) {
     console.error(error);

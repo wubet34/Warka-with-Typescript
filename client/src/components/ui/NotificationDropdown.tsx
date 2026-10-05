@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Bell, MessageCircle, ChevronUp, Check, Trash2, AtSign, Newspaper } from "lucide-react";
+import { Bell, MessageCircle, ChevronUp, Check, Trash2, AtSign, Newspaper, UserRoundPlus, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { notificationService } from "../../services/notificationService";
 import { useSocket } from "../../context/SocketContext";
@@ -17,6 +17,8 @@ const typeIcon = (type: Notification["type"]) => {
     case "vote":     return <ChevronUp size={13} />;
     case "mention":  return <AtSign size={13} />;
     case "new_post": return <Newspaper size={13} />;
+    case "follow":   return <UserRoundPlus size={13} />;
+    case "message":  return <Mail size={13} />;
   }
 };
 
@@ -27,6 +29,8 @@ const typeColor = (type: Notification["type"]) => {
     case "vote":     return "#10b981";
     case "mention":  return "#f59e0b";
     case "new_post": return "#6366f1";
+    case "follow":   return "#0ea5e9";
+    case "message":  return "#a855f7";
   }
 };
 
@@ -36,6 +40,8 @@ const typeLabel: Record<Notification["type"], string> = {
   vote: "New upvote",
   mention: "New mention",
   new_post: "New community post",
+  follow: "New follower",
+  message: "New message",
 };
 
 const NotificationDropdown = () => {
@@ -123,6 +129,8 @@ const NotificationDropdown = () => {
     }
     setOpen(false);
     if (n.post_id) navigate(`/post/${n.post_id}`);
+    else if (n.type === "message" && n.actor_id) navigate(`/messages?user=${n.actor_id}`);
+    else if (n.type === "follow" && n.actor_id) navigate(`/user/${n.actor_id}`);
   };
 
   const handleDelete = async (e: React.MouseEvent, id: number) => {

@@ -15,7 +15,7 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
     const { id } = (req as AuthRequest).user;
 
     const result = await pool.query(
-      `SELECT id, username, email, profile_image, cover_image, bio, is_verified, created_at
+      `SELECT id, username, email, profile_image, cover_image, bio, country, city, website, social_links, is_verified, created_at
        FROM users WHERE id = $1`,
       [id]
     );
@@ -29,6 +29,45 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
+
+export const deleteAccount = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = (req as AuthRequest).user;
+    const result = await pool.query("DELETE FROM users WHERE id = $1 RETURNING id", [id]);
+    if (result.rowCount === 0) {
+      res.status(404).json({ success: false, message: "Account not found." });
+      return;
+    }
+    res.status(200).json({ success: true, message: "Account deleted." });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Could not delete account." });
+  }
+};
+
+export const changePassword = async (req: Request, res: Response): Promise<void> => {
+  const { current_password, new_password } = req.body as { current_password?: string; new_password?: string };
+  if (!new_password || new_password.length < 8) {
+    res.status(400).json({ success: false, message: "New password must be at least 8 characters." });
+    return;
+  }
+  try {
+    const userId = (req as AuthRequest).user.id;
+    const result = await pool.query("SELECT password_hash FROM users WHERE id = $1", [userId]);
+    if (!result.rows.length) { res.status(404).json({ success: false, message: "Account not found." }); return; }
+    const currentHash = result.rows[0].password_hash as string | null;
+    if (currentHash && (!current_password || !(await bcrypt.compare(current_password, currentHash)))) {
+      res.status(400).json({ success: false, message: "Current password is incorrect." });
+      return;
+    }
+    const hash = await bcrypt.hash(new_password, 10);
+    await pool.query("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2", [hash, userId]);
+    res.json({ success: true, message: "Password updated." });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Could not update password." });
   }
 };
 
@@ -218,7 +257,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 export const updateProfile = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as AuthRequest).user.id;
-    const { username: requestedUsername, bio } = req.body as { username?: string; bio?: string };
+    const { username: requestedUsername, bio, country, city, website, social_links: rawSocialLinks } = req.body as { username?: string; bio?: string; country?: string; city?: string; website?: string; social_links?: string };
 
     // Multer puts uploaded files in req.files (fields)
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
@@ -226,7 +265,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
     const coverFile  = files?.["cover"]?.[0];
 
     const current = await pool.query(
-      "SELECT username, bio, profile_image, cover_image FROM users WHERE id = $1",
+      "SELECT username, bio, profile_image, cover_image, country, city, website, social_links FROM users WHERE id = $1",
       [userId]
     );
     if (current.rows.length === 0) {
@@ -255,12 +294,33 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
     const profileImage = avatarFile ? await storeImage(avatarFile) : currentProfile?.profile_image;
     const coverImage   = coverFile  ? await storeImage(coverFile)  : currentProfile?.cover_image;
 
+    let socialLinks = currentProfile.social_links ?? {};
+    if (rawSocialLinks !== undefined) {
+      try { socialLinks = JSON.parse(rawSocialLinks); }
+      catch { res.status(400).json({ success: false, message: "Invalid social links." }); return; }
+      if (!socialLinks || typeof socialLinks !== "object" || Array.isArray(socialLinks)) {
+        res.status(400).json({ success: false, message: "Invalid social links." }); return;
+      }
+      for (const [network, url] of Object.entries(socialLinks)) {
+        if (!["github", "linkedin", "telegram", "instagram"].includes(network) || (url && (typeof url !== "string" || !/^https?:\/\//i.test(url)))) {
+          res.status(400).json({ success: false, message: "Social links must use valid HTTP or HTTPS URLs." }); return;
+        }
+      }
+    }
+    const websiteValue = website === undefined ? currentProfile.website : website.trim() || null;
+    if (websiteValue && !/^https?:\/\//i.test(websiteValue)) {
+      res.status(400).json({ success: false, message: "Website must start with http:// or https://." }); return;
+    }
+
     const result = await pool.query(
       `UPDATE users
-       SET username = $1, bio = $2, profile_image = $3, cover_image = $4, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5
-       RETURNING id, username, email, bio, profile_image, cover_image, is_verified, created_at, updated_at`,
-      [username, bio === undefined ? currentProfile.bio : bio.trim() || null, profileImage || null, coverImage || null, userId]
+       SET username = $1, bio = $2, profile_image = $3, cover_image = $4,
+           country = $5, city = $6, website = $7, social_links = $8, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $9
+       RETURNING id, username, email, bio, country, city, website, social_links, profile_image, cover_image, is_verified, created_at, updated_at`,
+      [username, bio === undefined ? currentProfile.bio : bio.trim() || null, profileImage || null, coverImage || null,
+       country === undefined ? currentProfile.country : country.trim() || null,
+       city === undefined ? currentProfile.city : city.trim() || null, websiteValue, socialLinks, userId]
     );
 
     res.status(200).json({

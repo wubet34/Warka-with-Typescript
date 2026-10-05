@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, useParams } from "react-router-dom";
-import { FileText, BadgeCheck, CalendarDays, Pencil, Users, ArrowBigUp, Trophy, Plus } from "lucide-react";
+import { FileText, BadgeCheck, CalendarDays, Pencil, Users, ArrowBigUp, Trophy, Plus, UserRoundPlus, UserRoundCheck } from "lucide-react";
 import type { User, Post, Community } from "../types/index";
 import { useAuth } from "../context/AuthContext";
 import PostCard from "../components/ui/PostCard";
@@ -9,6 +9,7 @@ import api from "../api/client";
 import { formatDate } from "../utils/formatDate";
 import { imgUrl } from "../utils/imageUrl";
 import { ProfilePageSkeleton } from "../components/ui/LoadingSkeleton";
+import { followService } from "../services/followService";
 
 type ProfileCommunity = Pick<Community, "id" | "name" | "slug">;
 type ProfileUser = User & {
@@ -20,16 +21,20 @@ type ProfileUser = User & {
   created_community_count?: number | string;
   joined_communities?: ProfileCommunity[];
   created_communities?: ProfileCommunity[];
+  follower_count?: number | string;
+  following_count?: number | string;
 };
 
 const UserProfile = () => {
   const { id } = useParams<{ id: string }>();
-  const { user: me } = useAuth();
+  const { user: me, isAuthenticated } = useAuth();
   const [profile, setProfile]   = useState<ProfileUser | null>(null);
   const [posts, setPosts]       = useState<Post[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
   const [showEdit, setShowEdit] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -37,10 +42,13 @@ const UserProfile = () => {
     Promise.all([
       api.get<{ success: boolean; user: ProfileUser }>(`/users/${id}`).then(r => r.data.user),
       api.get<{ success: boolean; posts: Post[] }>(`/users/${id}/posts`).then(r => r.data.posts),
-    ]).then(([u, p]) => { setProfile(u); setPosts(p); })
+    ]).then(([u, p]) => {
+      setProfile(u); setPosts(p); setIsFollowing(false);
+      if (isAuthenticated && me?.id !== u.id) followService.state("users", u.id).then(setIsFollowing).catch(() => {});
+    })
       .catch(() => setError("User not found."))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, isAuthenticated, me?.id]);
 
   if (loading) return (
     <ProfilePageSkeleton />
@@ -52,6 +60,15 @@ const UserProfile = () => {
   const isOwn    = me?.id === profile.id;
   const coverSrc = imgUrl(profile.cover_image);
   const avatarSrc = imgUrl(profile.profile_image);
+
+  const toggleFollow = async () => {
+    const next = !isFollowing;
+    setIsFollowing(next); setFollowBusy(true);
+    setProfile(current => current ? { ...current, follower_count: Number(current.follower_count ?? 0) + (next ? 1 : -1) } : current);
+    try { await followService.set("users", profile.id, next); }
+    catch { setIsFollowing(!next); setProfile(current => current ? { ...current, follower_count: Number(current.follower_count ?? 0) + (next ? -1 : 1) } : current); }
+    finally { setFollowBusy(false); }
+  };
 
   return (
     <>
@@ -84,6 +101,14 @@ const UserProfile = () => {
                   <Pencil size={13} /> Edit Profile
                 </button>
               )}
+              {!isOwn && isAuthenticated && <div className="flex gap-2">
+                <NavLink to={`/messages?user=${profile.id}`} className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold" style={{ border: "1px solid var(--border)", color: "var(--text)" }}>Message</NavLink>
+                <button type="button" disabled={followBusy} onClick={() => void toggleFollow()}
+                  className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors hover:bg-(--surface2) disabled:opacity-50"
+                  style={isFollowing ? { border: "1px solid var(--border)", color: "var(--text)" } : { backgroundColor: "var(--accent)", color: "#fff" }}>
+                  {isFollowing ? <><UserRoundCheck size={14} /> Following</> : <><UserRoundPlus size={14} /> Follow</>}
+                </button>
+              </div>}
             </div>
 
             <div className="mb-1 flex items-center gap-1.5">
@@ -91,11 +116,17 @@ const UserProfile = () => {
               {profile.is_verified && <BadgeCheck size={17} style={{ color: "var(--accent)" }} />}
             </div>
             {profile.bio && <p className="text-sm mb-3" style={{ color: "var(--muted)" }}>{profile.bio}</p>}
+            {(profile.country || profile.city || profile.website || Object.values(profile.social_links ?? {}).some(Boolean)) && <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: "var(--muted)" }}>
+              {(profile.city || profile.country) && <span>{[profile.city, profile.country].filter(Boolean).join(", ")}</span>}
+              {profile.website && <a href={profile.website} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: "var(--accent)" }}>Website</a>}
+              {Object.entries(profile.social_links ?? {}).filter(([, url]) => Boolean(url)).map(([network, url]) => <a key={network} href={url} target="_blank" rel="noopener noreferrer" className="capitalize hover:underline" style={{ color: "var(--accent)" }}>{network}</a>)}
+            </div>}
 
             <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t pt-3 text-xs" style={{ color: "var(--muted)", borderColor: "var(--border)" }}>
               <span className="flex items-center gap-1.5"><FileText size={14} /> <strong style={{ color: "var(--text)" }}>{profile.post_count ?? posts.length}</strong> posts</span>
               <span className="flex items-center gap-1.5"><ArrowBigUp size={14} /> <strong style={{ color: "var(--text)" }}>{Number(profile.votes_received ?? 0).toLocaleString()}</strong> votes received</span>
               <span className="flex items-center gap-1.5"><Trophy size={14} /> <strong style={{ color: "var(--text)" }}>{Number(profile.karma ?? 0).toLocaleString()}</strong> post score</span>
+              <span><strong style={{ color: "var(--text)" }}>{Number(profile.follower_count ?? 0).toLocaleString()}</strong> followers</span>
               {profile.created_at && (
                 <span className="flex items-center gap-1.5"><CalendarDays size={14} /> Joined {formatDate(profile.created_at)}</span>
               )}

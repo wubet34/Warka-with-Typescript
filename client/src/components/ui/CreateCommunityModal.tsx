@@ -9,6 +9,8 @@ const CreateCommunityModal = ({ onClose }: Props) => {
   const navigate = useNavigate();
   const [name, setName]         = useState("");
   const [desc, setDesc]         = useState("");
+  const [rules, setRules] = useState("");
+  const [tagsText, setTagsText] = useState("");
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
 
@@ -18,7 +20,7 @@ const CreateCommunityModal = ({ onClose }: Props) => {
     if (name.trim().length < 3) { setError("At least 3 characters."); return; }
     setLoading(true); setError("");
     try {
-      const c = await communityService.createCommunity({ name: name.trim(), description: desc.trim() || undefined });
+      const c = await communityService.createCommunity({ name: name.trim(), description: desc.trim() || undefined, rules: rules.trim() || undefined, tags: tagsText.split(",").map(tag => tag.trim()).filter(Boolean) });
       onClose(); navigate(`/w/${c.slug}`);
     } catch (err: unknown) {
       setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to create community.");
@@ -27,7 +29,7 @@ const CreateCommunityModal = ({ onClose }: Props) => {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ backgroundColor:"rgba(0,0,0,0.6)" }}>
-      <div className="rounded-2xl shadow-2xl w-full max-w-md" style={{ backgroundColor:"var(--surface)", border:"1px solid var(--border)" }}>
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl shadow-2xl" style={{ backgroundColor:"var(--surface)", border:"1px solid var(--border)" }}>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom:"1px solid var(--border)" }}>
           <div className="flex items-center gap-2">
             <Users size={17} style={{ color:"var(--accent)" }} />
@@ -49,6 +51,15 @@ const CreateCommunityModal = ({ onClose }: Props) => {
             <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3} maxLength={300} placeholder="What is this community about?"
               className="w-full px-4 py-2.5 rounded-xl outline-none text-sm resize-none" style={{ backgroundColor:"var(--input-bg)", color:"var(--text)", border:"1px solid var(--border)" }} />
             <p className="text-xs text-right" style={{ color:"var(--muted)" }}>{desc.length}/300</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color:"var(--text)" }}>Community rules</label>
+            <textarea value={rules} onChange={e => setRules(e.target.value)} rows={3} maxLength={2000} placeholder="Be respectful. Keep posts on topic…"
+              className="w-full px-4 py-2.5 rounded-xl outline-none text-sm resize-none" style={{ backgroundColor:"var(--input-bg)", color:"var(--text)", border:"1px solid var(--border)" }} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color:"var(--text)" }}>Tags</label>
+            <input value={tagsText} onChange={e => setTagsText(e.target.value)} placeholder="technology, learning, local" className="w-full px-4 py-2.5 rounded-xl outline-none text-sm" style={{ backgroundColor:"var(--input-bg)", color:"var(--text)", border:"1px solid var(--border)" }} />
           </div>
           {error && <p className="text-xs px-3 py-2 rounded-xl" style={{ backgroundColor:"rgba(248,81,73,0.1)", color:"#f85149" }}>{error}</p>}
           <div className="flex gap-2 pt-1">

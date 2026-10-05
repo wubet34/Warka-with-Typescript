@@ -21,7 +21,11 @@ const HomeFeed = () => {
     postService.getFeed().then(loaded => setPosts(current => {
       const byId = new Map([...loaded, ...current].map(post => [post.id, post]));
       return [...byId.values()].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    })).catch(() => setError("Failed to load posts.")).finally(() => setLoading(false));
+    })).catch((err: unknown) => {
+      console.error("Failed to load home feed:", err);
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(message || "Failed to load posts. Check that the API server is running and try again.");
+    }).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {

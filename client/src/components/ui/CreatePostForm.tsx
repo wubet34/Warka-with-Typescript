@@ -25,6 +25,9 @@ const CreatePostForm = ({ onPostCreated, defaultCommunityId }: Props) => {
   const [tab,           setTab]           = useState<PostTab>("text");
   const [title,         setTitle]         = useState("");
   const [content,       setContent]       = useState("");
+  const [postType,      setPostType]      = useState<NonNullable<Post["post_type"]>>("discussion");
+  const [tagsText,      setTagsText]      = useState("");
+  const [pollOptions,   setPollOptions]   = useState(["", ""]);
   const [link,          setLink]          = useState("");
   const [imageFile,     setImageFile]     = useState<File | null>(null);
   const [imagePreview,  setImagePreview]  = useState<string | null>(null);
@@ -41,6 +44,7 @@ const CreatePostForm = ({ onPostCreated, defaultCommunityId }: Props) => {
 
   const reset = () => {
     setTitle(""); setContent(""); setLink("");
+    setPostType("discussion"); setTagsText(""); setPollOptions(["", ""]);
     setImageFile(null); setImagePreview(null);
     setCommunityId(defaultCommunityId ?? "");
     setError(""); setTab("text"); setExpanded(false);
@@ -59,14 +63,19 @@ const CreatePostForm = ({ onPostCreated, defaultCommunityId }: Props) => {
     setError("");
     if (!title.trim())                      { setError("Title is required."); return; }
     if (!communityId)                       { setError("Select a community."); return; }
-    if (tab === "text"  && !content.trim()) { setError("Add some text content."); return; }
+    if (postType !== "poll" && tab === "text"  && !content.trim()) { setError("Add some text content."); return; }
     if (tab === "image" && !imageFile)      { setError("Pick an image."); return; }
     if (tab === "link"  && !link.trim())    { setError("Enter a URL."); return; }
+    const options = pollOptions.map(option => option.trim()).filter(Boolean);
+    if (postType === "poll" && new Set(options).size < 2) { setError("A poll needs at least two different options."); return; }
     setSubmitting(true);
     try {
       const post = await postService.createPost({
         title: title.trim(),
         community_id: Number(communityId),
+        post_type: postType,
+        tags: tagsText.split(",").map(tag => tag.trim()).filter(Boolean).slice(0, 8),
+        poll_options: postType === "poll" ? options : undefined,
         // Keep captions and link descriptions; the content field is shared by all tabs.
         content: content.trim() || undefined,
         image:    tab === "image" ? imageFile!      : undefined,
@@ -147,6 +156,19 @@ const CreatePostForm = ({ onPostCreated, defaultCommunityId }: Props) => {
             <input placeholder="Title *" value={title} onChange={e => setTitle(e.target.value)} maxLength={300}
               className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
               style={{ ...inp }} />
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <select aria-label="Post type" value={postType} onChange={event => setPostType(event.target.value as NonNullable<Post["post_type"]>)} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none" style={{ ...inp }}>
+                {["question", "discussion", "news", "tutorial", "resource", "poll", "announcement"].map(type => <option key={type} value={type}>{type[0].toUpperCase() + type.slice(1)}</option>)}
+              </select>
+              <input aria-label="Tags" placeholder="Tags, comma separated" value={tagsText} onChange={event => setTagsText(event.target.value)} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none" style={{ ...inp }} />
+            </div>
+
+            {postType === "poll" && <div className="space-y-2">
+              <p className="text-xs font-medium" style={{ color: "var(--muted)" }}>Poll options (2 to 6)</p>
+              {pollOptions.map((option, index) => <input key={index} value={option} maxLength={200} placeholder={`Option ${index + 1}`} onChange={event => setPollOptions(current => current.map((value, i) => i === index ? event.target.value : value))} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none" style={{ ...inp }} />)}
+              {pollOptions.length < 6 && <button type="button" onClick={() => setPollOptions(current => [...current, ""])} className="text-xs font-semibold" style={{ color: "var(--accent)" }}>+ Add option</button>}
+            </div>}
 
             {/* Tabs */}
             <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
